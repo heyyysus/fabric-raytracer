@@ -1,3 +1,4 @@
+#include "lib/common.h"
 #include "lib/math_helpers.h"
 #include "loader.h"
 #define STB_IMAGE_IMPLEMENTATION
@@ -34,13 +35,40 @@ struct Image {
         for (int i = 0; i < width; i++){
             for (int j = 0; j < height; j++){
                 for (int k = 0; k < 3; k++){
-                    int val = muni::clamp(static_cast<int>(255 * this->data[i][j][k]), 0, 255);
+                    float val = muni::clamp(static_cast<float>(255.0f * this->data[i][j][k]), 0.0f, 255.0f);
                     raw_data.push_back((unsigned char)(val));
                 }
             }
         }
 
         stbi_write_png(filePath.c_str(), width, height, this->channels, raw_data.data(), 0);
+    }
+
+    Vec3f tone_map_Aces(const Vec3f value) const {
+        Vec3f color = 0.6f * value;
+        float A = 2.51;
+        float B = 0.03;
+        float C = 2.43;
+        float D = 0.59;
+        float E = 0.14;
+        color = (color * (A * color + B)) / (color * (C * color + D) + E);
+        return color;
+    }
+
+    bool save_with_tonemapping(const std::string &filename) const {
+        // Convert the floating-point data to 8-bit per channel.
+        std::vector<uint8_t> _data(3 * width * height);
+        for (int i = 0; i < width * height; i++) {
+            for (int j = 0; j < 3; j++) {
+                Vec3f pixel = tone_map_Aces(data[i / height][i % height]);
+                _data[3 * i + j] = static_cast<uint8_t>(
+                    // 255.0f * std::max(0.0f, std::min(1.0f, pixels[i][j])));
+                    255.0f * std::max(0.0f, std::min(1.0f, pixel[j])));
+            }
+        }
+        // Save the image to a png file.
+        return stbi_write_png(filename.c_str(), width, height, 3, _data.data(),
+                              sizeof(uint8_t) * 3 * width) != 0;
     }
 
 };
@@ -116,7 +144,7 @@ obj_data* create_fabric(float scale){
         v[1] *= scale;
         v[2] *= scale;
 
-        // v[0] -= 0.5f;
+        v[0] -= 0.75f;
     }
 
     fabric->normals = {
@@ -150,9 +178,17 @@ int main(int argc, char** argv){
 
     std::string fn = argv[1];
 
+    int w = 256;
+    int h = 256;
+    int spp = 16;
+
     // obj_data* object = load_obj("models/" + fn + ".obj");
     obj_data* object = create_fabric(0.25f);
-    obj_data* walls = create_walls(1.5f);
+    obj_data* walls0 = create_walls(1.0f);
+    obj_data* walls1 = create_walls(1.0f);
+
+    walls0->faces.erase(walls0->faces.begin(), walls0->faces.end()-2);
+    walls1->faces.erase(walls1->faces.end()-2, walls1->faces.end());
 
     // std::vector<std::vector<float> > rot = {
     //     {0, 1, 0},
@@ -183,12 +219,29 @@ int main(int argc, char** argv){
 
 
     Scene* scene = new Scene();
-    scene->addObject(object, Scene::RED_MATERIAL_ID);
-    scene->addObject(walls, Scene::WALL_MATERIAL_ID);
-    scene->setAreaLight({0.9, 0, 0}, {-1, 0, 0}, 0.5, {1.0f, 1.0f, 1.0f});
 
-    Image img(*scene->renderImage(512, 512));
-    img.save(fn + ".png");
+    scene->addObject(object, Scene::RED_MATERIAL_ID);
+    scene->addObject(walls0, Scene::BLUE_MATERIAL_ID);
+    scene->addObject(walls1, Scene::WHITE_MATERIAL_ID);
+
+    scene->setAreaLight({0.9, 0, 0}, {-1, 0, 0}, 0.25f, {120.0f, 120.0f, 120.0f});
+
+    ImageMat *nmap, *dmap, *amap;
+
+    std::cout << "Rendering..." << std::endl;
+    scene->renderMaps(w, h, nmap, dmap, amap);
+
+    std::cout << "ImageMat to Image..." << std::endl;
+    Image normal_map(*nmap), depth_map(*dmap), albedo_map(*amap);
+
+    std::cout << "Saving..." << std::endl;
+    normal_map.save(fn + "_normal.png");
+    depth_map.save(fn + "_depth.png");
+    albedo_map.save(fn + "_albedo.png");
+
+    Image img(*scene->renderImage(w, h, spp));
+    img.save_with_tonemapping(fn + ".png");
+
 
 
     return 0;

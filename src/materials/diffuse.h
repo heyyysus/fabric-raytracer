@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../lib/common.h"
+#include "../lib/math_helpers.h"
 
 class DiffuseMaterial {
 
@@ -13,7 +14,7 @@ public:
     DiffuseMaterial(Vec3f color) : color(color){}
 
     Vec3f eval() const {
-        return this->color;
+        return this->color / M_PI;
     }
 
 };
