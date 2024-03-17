@@ -3,6 +3,7 @@
 #include "lib/image.h"
 #include "lib/ray_tracer.h"
 #include "loader.h"
+#include "materials/diffuse.h"
 
 struct camera {
     Vec3f position;
@@ -28,6 +29,9 @@ public:
     Scene();
     ~Scene();
 
+    static const int WALL_MATERIAL_ID = 1;
+    static const int RED_MATERIAL_ID = 1;
+
     // Add object to scene
     void addObject(obj_data* object, int material_id);
 
@@ -46,12 +50,16 @@ public:
 
 private: 
     camera cam;
+
     std::vector<triangle> triangles;
+
     Vec3f area_light_p;
     Vec3f area_light_n;
     Vec3f area_light_color;
     float area_light_l;
     int area_light_idx;
+
+    DiffuseMaterial wall_material, red_material;
 
     Vec3f shade_pixel(triangle tri, Vec3f p, Vec3f wo, muni::RayTracer::Octree *octree);
 };

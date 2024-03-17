@@ -1,6 +1,7 @@
 #include "scene.h"
 #include "lib/image.h"
 #include "lib/ray_tracer.h"
+#include "materials/diffuse.h"
 #include <limits>
 #include <tuple>
 
@@ -10,6 +11,8 @@ Scene::Scene(){
     // Initialize camera
     this->cam = camera();
     this->area_light_idx = -1;
+    this->wall_material = DiffuseMaterial(Vec3f(0, 0.5, 0.5));
+    this->red_material = DiffuseMaterial(Vec3f(1.0f, 0, 0));
 }
 
 std::tuple<bool, float> triangle::ray_triangle_intersect(triangle tri, Vec3f ray_origin, Vec3f ray_direction,
@@ -130,10 +133,21 @@ Vec3f Scene::shade_pixel(triangle tri, Vec3f p, Vec3f wo, muni::RayTracer::Octre
     Vec3f light_dir_n = linalg::normalize(light_dir);
 
     if (this->hitsAreaLight(p + EPS * tri.n, light_dir_n, octree)){
-        Vec3f emission = this->getEmission(p, wo);
+        Vec3f emission = this->getEmission(p, light_dir);
         float cos_theta = linalg::dot(tri.n, light_dir_n);
+
         if (cos_theta > 0){
-            pixel = cos_theta * this->area_light_color;
+            Vec3f eval = emission;
+
+            switch(tri.material_id){
+                case 1:
+                    eval *= this->wall_material.eval();
+                    break;
+                case 2:
+                    eval *= this->red_material.eval();
+                    break;
+            }
+            pixel = cos_theta * eval;
         }
     }
 

@@ -101,6 +101,46 @@ obj_data* create_walls(float scale){
     return walls;
 }
 
+obj_data* create_fabric(float scale){
+    obj_data* fabric = new obj_data();
+
+    fabric->vertices = {
+        {0, -1, -1},
+        {0, -1, 1},
+        {0, 1, 1},
+        {0, 1, -1}
+    };
+
+    for (auto& v : fabric->vertices){
+        v[0] *= scale;
+        v[1] *= scale;
+        v[2] *= scale;
+
+        // v[0] -= 0.5f;
+    }
+
+    fabric->normals = {
+        {0, 0, 1},
+        {0, 0, 1},
+        {0, 0, 1},
+        {0, 0, 1}
+    };
+
+    fabric->tex_coords = {
+        {0, 0},
+        {1, 0},
+        {1, 1},
+        {0, 1}
+    };
+
+    fabric->faces = {
+        {{1, 1, 1}, {3, 1, 1}, {2, 1, 1}},
+        {{1, 1, 1}, {4, 1, 1}, {3, 1, 1}}
+    };
+
+    return fabric;
+}
+
 int main(int argc, char** argv){
 
     if (argc != 2){
@@ -110,39 +150,28 @@ int main(int argc, char** argv){
 
     std::string fn = argv[1];
 
-    obj_data* object = load_obj("models/" + fn + ".obj");
+    // obj_data* object = load_obj("models/" + fn + ".obj");
+    obj_data* object = create_fabric(0.25f);
     obj_data* walls = create_walls(1.5f);
 
-
-    // Apply 90 degree rotation around the z-axis
     // std::vector<std::vector<float> > rot = {
-    //     {0, -1, 0, 0},
-    //     {1, 0, 0, 0},
-    //     {0, 0, 1, 0},
-    //     {0, 0, 0, 1}
+    //     {0, 1, 0},
+    //     {-1, 0, 0},
+    //     {0, 0, 1},
     // };
 
-    // Inv of rot 
-    std::vector<std::vector<float> > rot = {
-        {0, 1, 0, 0},
-        {-1, 0, 0, 0},
-        {0, 0, 1, 0},
-        {0, 0, 0, 1}
-    };
+    // apply_transformation(object, rot);
 
-    apply_transformation(object, rot);
+    // // Apply 180 degree rotation around the y-axis
+    // std::vector<std::vector<float> > rot2 = {
+    //     {-1, 0, 0},
+    //     {0, 1, 0},
+    //     {0, 0, -1},
+    // };
 
-    // Apply 180 degree rotation around the y-axis
-    std::vector<std::vector<float> > rot2 = {
-        {-1, 0, 0, 0},
-        {0, 1, 0, 0},
-        {0, 0, -1, 0},
-        {0, 0, 0, 1}
-    };
+    // apply_transformation(object, rot2);
 
-    apply_transformation(object, rot2);
-
-    normalize_obj_vertices(object);
+    // normalize_obj_vertices(object);
 
     if (object == nullptr){
         return 1;
@@ -152,11 +181,10 @@ int main(int argc, char** argv){
     std::cout << "Loaded " << object->tex_coords.size() << " texture coordinates" << std::endl;
     std::cout << "Loaded " << object->normals.size() << " normals" << std::endl;
 
-    const int material_id = 1;
 
     Scene* scene = new Scene();
-    scene->addObject(object, material_id);
-    scene->addObject(walls, material_id);
+    scene->addObject(object, Scene::RED_MATERIAL_ID);
+    scene->addObject(walls, Scene::WALL_MATERIAL_ID);
     scene->setAreaLight({0.9, 0, 0}, {-1, 0, 0}, 0.5, {1.0f, 1.0f, 1.0f});
 
     Image img(*scene->renderImage(512, 512));

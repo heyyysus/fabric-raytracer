@@ -4,10 +4,11 @@ CXXFLAGS = -Wall -std=c++17
 
 # Define directories for headers and source files
 LIB_DIR = ./lib
+MAT_DIR = ./materials
 SRC_DIR = .
 
 # Include directories for header files
-INCLUDES = -I$(LIB_DIR) -I$(SRC_DIR)
+INCLUDES = -I$(LIB_DIR) -I$(SRC_DIR) -I$(MAT_DIR)
 
 # Source files
 SOURCES = $(SRC_DIR)/main.cpp $(SRC_DIR)/loader.cpp $(SRC_DIR)/scene.cpp 
