@@ -45,7 +45,7 @@ struct Image {
 
 };
 
-obj_data* create_walls(){
+obj_data* create_walls(float scale){
     obj_data* walls = new obj_data();
     walls->vertices = {
         {-1, -1, -1},
@@ -57,6 +57,12 @@ obj_data* create_walls(){
         {1, 1, 1},
         {-1, 1, 1}
     };
+
+    for (auto& v : walls->vertices){
+        v[0] *= scale;
+        v[1] *= scale;
+        v[2] *= scale;
+    }
 
     walls->normals = {
         {0, 0, -1},
@@ -105,7 +111,7 @@ int main(int argc, char** argv){
     std::string fn = argv[1];
 
     obj_data* object = load_obj("models/" + fn + ".obj");
-    obj_data* walls = create_walls();
+    obj_data* walls = create_walls(1.5f);
 
 
     // Apply 90 degree rotation around the z-axis
