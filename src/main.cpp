@@ -43,18 +43,68 @@ struct Image {
 
 };
 
+obj_data* create_walls(){
+    obj_data* walls = new obj_data();
+    walls->vertices = {
+        {-1, -1, -1},
+        {1, -1, -1},
+        {1, 1, -1},
+        {-1, 1, -1},
+        {-1, -1, 1},
+        {1, -1, 1},
+        {1, 1, 1},
+        {-1, 1, 1}
+    };
+
+    walls->normals = {
+        {0, 0, -1},
+        {0, 0, 1},
+        {1, 0, 0},
+        {-1, 0, 0},
+        {0, 1, 0},
+        {0, -1, 0}
+    };
+
+    walls->faces = {
+        {{1, 1, 1}, {2, 1, 1}, {3, 1, 1}},
+        {{1, 1, 1}, {3, 1, 1}, {4, 1, 1}},
+        {{5, 2, 2}, {8, 2, 2}, {7, 2, 2}},
+        {{5, 2, 2}, {7, 2, 2}, {6, 2, 2}},
+        {{1, 3, 3}, {5, 3, 3}, {6, 3, 3}},
+        {{1, 3, 3}, {6, 3, 3}, {2, 3, 3}},
+        {{2, 4, 4}, {6, 4, 4}, {7, 4, 4}},
+        {{2, 4, 4}, {7, 4, 4}, {3, 4, 4}},
+        {{3, 5, 5}, {7, 5, 5}, {8, 5, 5}},
+        {{3, 5, 5}, {8, 5, 5}, {4, 5, 5}},
+        {{5, 6, 6}, {1, 6, 6}, {4, 6, 6}},
+        {{5, 6, 6}, {4, 6, 6}, {8, 6, 6}}
+    };
+
+    walls->tex_coords = {
+        {0, 0},
+        {1, 0},
+        {1, 1},
+        {0, 1},
+        {0, 0},
+        {1, 0},
+        {1, 1},
+        {0, 1}
+    };
+    return walls;
+}
+
 int main(int argc, char** argv){
 
-    if (argc != 4){
-        std::cerr << "Usage: " << argv[0] << " <input.obj> <input.mtl> <output.png>" << std::endl;
+    if (argc != 2){
+        std::cerr << "Usage: " << argv[0] << " <filename> (w/o extension, output to <filename>.png)" << std::endl;
         return 1;
     }
 
-    std::string obj_path = argv[1];
-    std::string mtl_path = argv[2];
-    std::string output_path = argv[3];
+    std::string fn = argv[1];
 
-    obj_data* object = load_obj(obj_path);
+    obj_data* object = load_obj("models/" + fn + ".obj");
+    obj_data* walls = create_walls();
+
 
     // Apply 90 degree rotation around the z-axis
     // std::vector<std::vector<float> > rot = {
@@ -98,9 +148,10 @@ int main(int argc, char** argv){
 
     Scene* scene = new Scene();
     scene->addObject(object, material_id);
+    scene->addObject(walls, material_id);
 
     Image img(*scene->renderNormalMap(512, 512));
-    img.save(output_path);
+    img.save(fn + "_normal_map.png");
 
 
     return 0;

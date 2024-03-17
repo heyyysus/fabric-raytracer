@@ -2,10 +2,84 @@
 #include "lib/image.h"
 #include "lib/ray_tracer.h"
 #include <limits>
+#include <tuple>
 
 Scene::Scene(){
     // Initialize camera
     this->cam = camera();
+}
+
+std::tuple<bool, float> triangle::ray_triangle_intersect(triangle tri, Vec3f ray_origin, Vec3f ray_direction,
+        float t_min, float t_max){
+
+    const Vec3f abs_ray_direction = abs(ray_direction);
+        unsigned int axis = 0;
+        if (abs_ray_direction[1] > abs_ray_direction[0] &&
+            abs_ray_direction[1] > abs_ray_direction[2])
+            axis = 1;
+        if (abs_ray_direction[2] > abs_ray_direction[0] &&
+            abs_ray_direction[2] > abs_ray_direction[1])
+            axis = 2;
+
+        unsigned int kz = axis;
+        unsigned int kx = (kz + 1) % 3;
+        unsigned int ky = (kx + 1) % 3;
+        if (ray_direction[kz] < 0.0f) {
+            unsigned int swap = kx;
+            kx = ky;
+            ky = swap;
+        }
+
+        float Sx = ray_direction[kx] / ray_direction[kz];
+        float Sy = ray_direction[ky] / ray_direction[kz];
+        float Sz = 1.f / ray_direction[kz];
+
+        const Vec3f A = tri.v0 - ray_origin;
+        const Vec3f B = tri.v1 - ray_origin;
+        const Vec3f C = tri.v2 - ray_origin;
+
+        const float Ax = A[kx] - Sx * A[kz];
+        const float Ay = A[ky] - Sy * A[kz];
+        const float Bx = B[kx] - Sx * B[kz];
+        const float By = B[ky] - Sy * B[kz];
+        const float Cx = C[kx] - Sx * C[kz];
+        const float Cy = C[ky] - Sy * C[kz];
+
+        float U = Cx * By - Cy * Bx;
+        float V = Ax * Cy - Ay * Cx;
+        float W = Bx * Ay - By * Ax;
+
+        if (U == 0.f || V == 0.f || W == 0.f) {
+            double CxBy = static_cast<double>(Cx) * static_cast<double>(By);
+            double CyBx = static_cast<double>(Cy) * static_cast<double>(Bx);
+            U = (float)(CxBy - CyBx);
+            double AxCy = static_cast<double>(Ax) * static_cast<double>(Cy);
+            double AyCx = static_cast<double>(Ay) * static_cast<double>(Cx);
+            V = (float)(AxCy - AyCx);
+            double BxAy = static_cast<double>(Bx) * static_cast<double>(Ay);
+            double ByAx = static_cast<double>(By) * static_cast<double>(Ax);
+            W = (float)(BxAy - ByAx);
+        }
+
+        if ((U < 0.f || V < 0.f || W < 0.f) && (U > 0.f || V > 0.f || W > 0.f))
+            return {false, 0.0f};
+
+        float det = U + V + W;
+        if (det == 0.f) return {false, 0.0f};
+
+        const float Az = Sz * A[kz];
+        const float Bz = Sz * B[kz];
+        const float Cz = Sz * C[kz];
+        const float T = U * Az + V * Bz + W * Cz;
+        const float rcp_det = 1.f / det;
+
+        const float t = T * rcp_det;
+        const Vec3f barycentrics = Vec3f(U, V, W) * rcp_det;
+
+        if (t < t_min || t > t_max) return {false, 0.0f};
+
+        return {true, t};
+
 }
 
 
@@ -36,6 +110,10 @@ ImageMat* Scene::renderNormalMap(int w, int h){
                 Vec3f n = t.n;
                 (*img)[i][j] = (n + 1) / 2;
                 // (*img)[i][j] = {1.0f, 1.0f, 1.0f};
+            } else {
+                if(i > w / 2 - 10 && i < w / 2 + 10 && j > h / 2 - 10 && j < h / 2 + 10){
+                    std::cout << "dir: " << dir.x << " " << dir.y << " " << dir.z << std::endl;
+                }
             }
         }
     }
@@ -71,4 +149,37 @@ void Scene::addObject(obj_data* object, int material_id){
         tri.material_id = material_id;
         this->triangles.push_back(tri);
     }
+}
+
+Vec3f Scene::getEmission(Vec3f p, Vec3f inbound_dir){
+    if (linalg::dot(inbound_dir, this->area_light_n) < 0){
+        return this->area_light_color;
+    } else {
+        return {0, 0, 0};
+    }
+}
+
+bool Scene::hitsAreaLight(Vec3f p, Vec3f dir){
+    std::vector <triangle> area_light_triangles;
+
+    Vec3f n = this->area_light_n;
+    Vec3f l = this->area_light_l / 2 * n;
+
+    Vec3f p0 = this->area_light_p - l;
+    Vec3f p1 = this->area_light_p + l;
+    Vec3f p2 = this->area_light_p + l - cross(n, l);
+    Vec3f p3 = this->area_light_p - l - cross(n, l);
+
+    triangle t1, t2;
+    t1 = std::make_tuple(p0, p1, p2, n, 0);
+    t2 = std::make_tuple(p0, p2, p3, n, 0);
+
+    auto [hit, tri, t] = muni::RayTracer::closest_hit(
+        p, 
+        dir, 
+        muni::RayTracer::Octree(this->triangles),
+        area_light_triangles
+    );
+    
+    return hit;
 }

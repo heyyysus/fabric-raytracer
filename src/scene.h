@@ -11,8 +11,9 @@ struct camera {
     float aspect;
 
     camera(){
-        position = {0, 0, -0.5};
-        look_dir = {0, 0, 1};
+        position = {0.25, -0.4, -0.5};
+        look_dir = {-0.5, 0.65, 1};
+        look_dir = linalg::normalize(look_dir);
         up = {0, 1, 0};
         fov = 90;
         aspect = 1;
@@ -35,6 +36,8 @@ public:
     // l: side length
     // color: emission vector
     void setAreaLight(Vec3f p, Vec3f n, float l, Vec3f color);
+    Vec3f getEmission(Vec3f p, Vec3f inbound_dir);
+    bool hitsAreaLight(Vec3f p, Vec3f dir);
 
     ImageMat* renderImage(int w, int h);
     ImageMat* renderNormalMap(int w, int h);
@@ -43,4 +46,8 @@ public:
 private: 
     camera cam;
     std::vector<triangle> triangles;
+    Vec3f area_light_p;
+    Vec3f area_light_n;
+    float area_light_l;
+    Vec3f area_light_color;
 };
