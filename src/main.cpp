@@ -1,3 +1,4 @@
+#include "lib/math_helpers.h"
 #include "loader.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "lib/stb_image.h"
@@ -33,7 +34,8 @@ struct Image {
         for (int i = 0; i < width; i++){
             for (int j = 0; j < height; j++){
                 for (int k = 0; k < 3; k++){
-                    raw_data.push_back((unsigned char)(255 * this->data[i][j][k]));
+                    int val = muni::clamp(static_cast<int>(255 * this->data[i][j][k]), 0, 255);
+                    raw_data.push_back((unsigned char)(val));
                 }
             }
         }
@@ -144,14 +146,15 @@ int main(int argc, char** argv){
     std::cout << "Loaded " << object->tex_coords.size() << " texture coordinates" << std::endl;
     std::cout << "Loaded " << object->normals.size() << " normals" << std::endl;
 
-    const int material_id = 0;
+    const int material_id = 1;
 
     Scene* scene = new Scene();
     scene->addObject(object, material_id);
     scene->addObject(walls, material_id);
+    scene->setAreaLight({0.9, 0, 0}, {-1, 0, 0}, 0.5, {1.0f, 1.0f, 1.0f});
 
-    Image img(*scene->renderNormalMap(512, 512));
-    img.save(fn + "_normal_map.png");
+    Image img(*scene->renderImage(512, 512));
+    img.save(fn + ".png");
 
 
     return 0;

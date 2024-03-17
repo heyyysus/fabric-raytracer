@@ -63,4 +63,9 @@ inline Vec3f matrix_multiply(const Vec3f& v, const std::vector<std::vector<float
         dot(v, Vec3f(m[0][2], m[1][2], m[2][2]))
     );
 }
+
+template<class T> T clamp(T x, T a, T b) {
+    return x < a ? a : (x > b ? b : x);
+}
+
 }  // namespace muni

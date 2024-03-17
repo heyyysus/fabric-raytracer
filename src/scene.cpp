@@ -4,9 +4,12 @@
 #include <limits>
 #include <tuple>
 
+#define EPS 1e-6f
+
 Scene::Scene(){
     // Initialize camera
     this->cam = camera();
+    this->area_light_idx = -1;
 }
 
 std::tuple<bool, float> triangle::ray_triangle_intersect(triangle tri, Vec3f ray_origin, Vec3f ray_direction,
@@ -100,21 +103,72 @@ ImageMat* Scene::renderNormalMap(int w, int h){
             float u = (2 * i * inv_w - 1) * aspect_ratio * scale;
             float v = (1 - 2 * j * inv_h) * scale;
             Vec3f dir = this->cam.geRayDir(u, v);
-            auto [hit, tri, t] = muni::RayTracer::closest_hit(
+            auto [hit, t, tri] = muni::RayTracer::closest_hit(
                 this->cam.position, 
                 dir, 
                 octree,
                 this->triangles
             );
             if (hit){
-                Vec3f n = t.n;
-                (*img)[i][j] = (n + 1) / 2;
-                // (*img)[i][j] = {1.0f, 1.0f, 1.0f};
-            } else {
-                if(i > w / 2 - 10 && i < w / 2 + 10 && j > h / 2 - 10 && j < h / 2 + 10){
-                    std::cout << "dir: " << dir.x << " " << dir.y << " " << dir.z << std::endl;
+                if (tri.material_id == 0){
+                    (*img)[i][j] = {1.0f, 1.0f, 1.0f};
+                } else {
+                    Vec3f n = tri.n;
+                    (*img)[i][j] = (n + 1) / 2;
                 }
             }
+        }
+    }
+
+    return img;
+}
+
+Vec3f Scene::shade_pixel(triangle tri, Vec3f p, Vec3f wo, muni::RayTracer::Octree *octree){
+    Vec3f pixel = {0, 0, 0};
+
+    Vec3f light_dir = this->area_light_p - (p + Vec3f({0.0f, 0.1f, 0.0f}));
+    Vec3f light_dir_n = linalg::normalize(light_dir);
+
+    if (this->hitsAreaLight(p + EPS * tri.n, light_dir_n, octree)){
+        Vec3f emission = this->getEmission(p, wo);
+        float cos_theta = linalg::dot(tri.n, light_dir_n);
+        if (cos_theta > 0){
+            pixel = cos_theta * this->area_light_color;
+        }
+    }
+
+    return pixel;
+}
+
+ImageMat* Scene::renderImage(int w, int h){
+    ImageMat* img = new ImageMat(w, std::vector<Vec3f>(h, Vec3f(0, 0, 0)));
+    float aspect_ratio = (float)w / (float)h;
+    float scale = tan(this->cam.fov * 0.5 * M_PI / 180);
+    float inv_w = 1.0 / w;
+    float inv_h = 1.0 / h;
+
+    muni::RayTracer::Octree octree = muni::RayTracer::Octree(this->triangles);
+
+    for (int i = 0; i < w; i++){
+        if (i % 10 == 0){
+            std::cout << "Rendering row: " << i << "/" << w << std::endl;
+        }
+        for (int j = 0; j < h; j++){
+            float u = (2 * i * inv_w - 1) * aspect_ratio * scale;
+            float v = (1 - 2 * j * inv_h) * scale;
+            Vec3f dir = this->cam.geRayDir(u, v);
+            auto [hit, t_min, tri] = muni::RayTracer::closest_hit(
+                this->cam.position, 
+                dir, 
+                octree,
+                this->triangles
+            );
+            if (hit){
+                Vec3f p = this->cam.position + t_min * dir;
+                Vec3f n = tri.n;
+                Vec3f pixel = this->shade_pixel(tri, p, dir, &octree);
+                (*img)[i][j] = pixel;
+            } 
         }
     }
 
@@ -159,27 +213,44 @@ Vec3f Scene::getEmission(Vec3f p, Vec3f inbound_dir){
     }
 }
 
-bool Scene::hitsAreaLight(Vec3f p, Vec3f dir){
-    std::vector <triangle> area_light_triangles;
+bool Scene::hitsAreaLight(Vec3f p, Vec3f dir, muni::RayTracer::Octree *octree){
 
-    Vec3f n = this->area_light_n;
-    Vec3f l = this->area_light_l / 2 * n;
+    auto [hit, t_min, tri] = muni::RayTracer::closest_hit(
+        p, 
+        dir, 
+        *octree,
+        this->triangles
+    );
 
-    Vec3f p0 = this->area_light_p - l;
-    Vec3f p1 = this->area_light_p + l;
-    Vec3f p2 = this->area_light_p + l - cross(n, l);
-    Vec3f p3 = this->area_light_p - l - cross(n, l);
+    return hit && tri.material_id == 0;
+}
+
+void Scene::setAreaLight(Vec3f p, Vec3f n, float l, Vec3f color){
+    this->area_light_p = p;
+    this->area_light_n = n;
+    this->area_light_l = l;
+    this->area_light_color = color;
+
+    if (this->area_light_idx == -1){
+        this->area_light_idx = this->triangles.size();
+        this->triangles.push_back(triangle());
+        this->triangles.push_back(triangle());
+    }
+
+    Vec3f arbitraryVec = (fabs(n.y) < 0.999) ? Vec3f(0, 1, 0) : Vec3f(1, 0, 0); 
+    Vec3f u = normalize(cross(n, arbitraryVec)); 
+    Vec3f v = normalize(cross(n, u)); 
+
+    Vec3f p0 = p - l * u - l * v;
+    Vec3f p1 = p + l * u - l * v;
+    Vec3f p2 = p + l * u + l * v;
+    Vec3f p3 = p - l * u + l * v;
+
 
     triangle t1, t2;
     t1 = std::make_tuple(p0, p1, p2, n, 0);
     t2 = std::make_tuple(p0, p2, p3, n, 0);
 
-    auto [hit, tri, t] = muni::RayTracer::closest_hit(
-        p, 
-        dir, 
-        muni::RayTracer::Octree(this->triangles),
-        area_light_triangles
-    );
-    
-    return hit;
+    this->triangles.at(this->area_light_idx) = t1;
+    this->triangles.at(this->area_light_idx + 1) = t2;
 }

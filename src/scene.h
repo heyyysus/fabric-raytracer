@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lib/image.h"
+#include "lib/ray_tracer.h"
 #include "loader.h"
 
 struct camera {
@@ -11,8 +12,8 @@ struct camera {
     float aspect;
 
     camera(){
-        position = {0.25, -0.4, -0.5};
-        look_dir = {-0.5, 0.65, 1};
+        position = {0.25, -0.35, -0.5};
+        look_dir = {-0.5, 0.7, 1.0};
         look_dir = linalg::normalize(look_dir);
         up = {0, 1, 0};
         fov = 90;
@@ -37,7 +38,7 @@ public:
     // color: emission vector
     void setAreaLight(Vec3f p, Vec3f n, float l, Vec3f color);
     Vec3f getEmission(Vec3f p, Vec3f inbound_dir);
-    bool hitsAreaLight(Vec3f p, Vec3f dir);
+    bool hitsAreaLight(Vec3f p, Vec3f dir, muni::RayTracer::Octree *octree);
 
     ImageMat* renderImage(int w, int h);
     ImageMat* renderNormalMap(int w, int h);
@@ -48,6 +49,9 @@ private:
     std::vector<triangle> triangles;
     Vec3f area_light_p;
     Vec3f area_light_n;
-    float area_light_l;
     Vec3f area_light_color;
+    float area_light_l;
+    int area_light_idx;
+
+    Vec3f shade_pixel(triangle tri, Vec3f p, Vec3f wo, muni::RayTracer::Octree *octree);
 };
