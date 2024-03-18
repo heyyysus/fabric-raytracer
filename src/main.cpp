@@ -181,6 +181,7 @@ int main(int argc, char** argv){
     int w = 256;
     int h = 256;
     int spp = 16;
+    float light_intensity = 120.0f;
 
     // obj_data* object = load_obj("models/" + fn + ".obj");
     obj_data* object = create_fabric(0.25f);
@@ -220,11 +221,11 @@ int main(int argc, char** argv){
 
     Scene* scene = new Scene();
 
-    scene->addObject(object, Scene::RED_MATERIAL_ID);
+    scene->addObject(object, Scene::CLOTH_MATERIAL_ID);
     scene->addObject(walls0, Scene::BLUE_MATERIAL_ID);
     scene->addObject(walls1, Scene::WHITE_MATERIAL_ID);
 
-    scene->setAreaLight({0.9, 0, 0}, {-1, 0, 0}, 0.25f, {120.0f, 120.0f, 120.0f});
+    scene->setAreaLight({0.9, 0, 0}, {-1, 0, 0}, 0.25f, Vec3f(light_intensity));
 
     ImageMat *nmap, *dmap, *amap;
 

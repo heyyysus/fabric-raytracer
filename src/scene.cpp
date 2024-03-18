@@ -2,15 +2,15 @@
 #include "lib/common.h"
 #include "lib/image.h"
 #include "lib/linalg.h"
+#include "lib/math_helpers.h"
 #include "lib/ray_tracer.h"
 #include "materials/diffuse.h"
+#include "materials/cloth.h"
 #include <limits>
 #include <tuple>
 #include "lib/sampler.h"
 
 #define EPS 1e-6f
-
-std::tuple<Vec3f, float> sampleCosineHemisphere(Vec3f normal);
 
 Scene::Scene(){
     // Initialize camera
@@ -18,14 +18,16 @@ Scene::Scene(){
 
     this->area_light_idx = -1;
 
-    DiffuseMaterial wall_material, red_material, white_material;
-    wall_material = DiffuseMaterial(Vec3f(0.1f, 0.2f, 0.5f));
-    red_material = DiffuseMaterial(Vec3f(0.85f, 0, 0));
-    white_material = DiffuseMaterial(Vec3f(0.7f, 0.7f, 0.7f));
+    Material *blue_material, *red_material, *white_material, *cloth_material;
+    blue_material = new DiffuseMaterial(Vec3f(0.1f, 0.2f, 0.5f));
+    red_material = new DiffuseMaterial(Vec3f(0.85f, 0, 0));
+    white_material = new DiffuseMaterial(Vec3f(0.7f, 0.7f, 0.7f));
+    cloth_material = new ClothMaterial(Vec3f(0.85f, 0, 0));
 
-    this->materials.push_back(wall_material);
+    this->materials.push_back(blue_material);
     this->materials.push_back(red_material);
     this->materials.push_back(white_material);
+    this->materials.push_back(cloth_material);
 
     muni::UniformSampler::init(0);
 }
@@ -124,7 +126,7 @@ void Scene::renderMaps(int w, int h, ImageMat* &normal, ImageMat* &depth, ImageM
             float u = (2 * i * inv_w - 1) * aspect_ratio * scale;
             float v = (1 - 2 * j * inv_h) * scale;
             Vec3f dir = this->cam.geRayDir(u, v);
-            auto [hit, t, tri] = muni::RayTracer::closest_hit(
+            auto [hit, t_min, tri] = muni::RayTracer::closest_hit(
                 this->cam.position, 
                 dir, 
                 octree,
@@ -133,13 +135,17 @@ void Scene::renderMaps(int w, int h, ImageMat* &normal, ImageMat* &depth, ImageM
             if (hit){
                 if (tri.material_id == 0){
                     (*normal)[i][j] = {1.0f, 1.0f, 1.0f};
-                    (*depth)[i][j] = linalg::clamp(Vec3f(1.0f - t), Vec3f(0.0f), Vec3f(1.0f));
+                    (*depth)[i][j] = linalg::clamp(Vec3f(1.0f - t_min), Vec3f(0.0f), Vec3f(1.0f));
                     (*albedo)[i][j] = this->area_light_color;
                 } else {    
                     Vec3f n = tri.n;
+
+                    Vec3f p = this->cam.position + t_min * dir;
+                    float t = p.y;
+
                     (*normal)[i][j] = (n + 1) / 2;
-                    (*depth)[i][j] = linalg::clamp(Vec3f(1.0f - t), Vec3f(0.0f), Vec3f(1.0f));
-                    (*albedo)[i][j] = this->materials.at(tri.material_id - 1).eval();
+                    (*depth)[i][j] = linalg::clamp(Vec3f(1.0f - t_min), Vec3f(0.0f), Vec3f(1.0f));
+                    (*albedo)[i][j] = this->materials.at(tri.material_id - 1)->eval(Vec3f(0.0f), Vec3f(0.0f), t) * M_PI;
                 }
             }
         }
@@ -161,11 +167,14 @@ Vec3f Scene::shade_pixel(triangle tri, Vec3f p, Vec3f wo, muni::RayTracer::Octre
 
     float cos_theta_light_normal = linalg::dot(tri.n, w_light);
 
+    float t = p.y;
+
     if (!lightBlocked && cos_theta_light_normal >= 0){
 
         Vec3f eval = this->getEmission(p, w_light) * cos_theta_light_normal / pdf_light;
 
-        eval *= (tri.material_id == 0) ? Vec3f(1.0f) : this->materials.at(tri.material_id - 1).eval();
+
+        eval *= (tri.material_id == 0) ? Vec3f(1.0f) : this->materials.at(tri.material_id - 1)->eval(wo, w_light, t);
 
         L_dir += eval;
 
@@ -176,15 +185,18 @@ Vec3f Scene::shade_pixel(triangle tri, Vec3f p, Vec3f wo, muni::RayTracer::Octre
     float ksi = muni::UniformSampler::next1d();
     // float ksi = 1.0f;
 
-    if(ksi <= 0.8f){
-        auto [wi, pdf] = sampleCosineHemisphere(tri.n);
+    if(ksi <= 0.8f && tri.material_id != 0){
+
+        Material* mat = this->materials.at(tri.material_id - 1);
+        auto [wi, pdf] = mat->sample(tri.n);
         auto [hit, t_min, hit_triangle] = muni::RayTracer::closest_hit(p + EPS * tri.n, wi, *octree, this->triangles);
         Vec3f q = p + t_min * wi;
 
-        if(hit && hit_triangle.material_id != 0){
-            Vec3f shade = shade_pixel(hit_triangle, q, -wi, octree) * linalg::dot(tri.n, wi);
-        
-            shade *= this->materials.at(tri.material_id - 1).eval();
+        if(hit && mat->type() != LIGHT_TYPE){
+
+            Vec3f shade = mat->eval(wo, wi);
+
+            shade *= shade_pixel(hit_triangle, q, -wi, octree) * linalg::dot(tri.n, wi);
 
             shade *= (1.0f/pdf) * (1.0f / 0.8f);
             L_indir += shade;
@@ -343,27 +355,3 @@ std::tuple<Vec3f, float, float> Scene::sampleAreaLight(Vec3f p){
     return {dir, pdf_solid_angle, sqrtf(dist_sqr)};
 }
 
-std::tuple<Vec3f, float> sampleCosineHemisphere(Vec3f normal){
-    {
-        // =============================================================================================
-
-        Vec2f u = muni::UniformSampler::next2d();
-
-        float theta = u.x * 2.0f * M_PI;
-        float phi = acos(sqrt(u.y)); // Cos
-
-        float x = sin(phi) * cos(theta);
-        float y = sin(phi) * sin(theta);
-        float z = cos(phi); 
-
-        Vec3f wi = Vec3f{x, y, z};
-        wi = muni::from_local(wi, normal);
-        wi = normalize(wi);
-
-        float pdf = cos(phi) / M_PI; //Cos
-
-        return std::make_tuple(wi, pdf);
-
-        // =============================================================================================
-    }
-}

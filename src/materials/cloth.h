@@ -5,22 +5,24 @@
 #include "../lib/sampler.h"
 #include "material.h"
 
-class DiffuseMaterial : public Material {
+class ClothMaterial : public Material {
 
 private:
     Vec3f color;
 
 public:
 
-    DiffuseMaterial() : color(Vec3f(0.0f)){ }
-    DiffuseMaterial(Vec3f color) : color(color){}
+    ClothMaterial() : color(Vec3f(0.0f)){ }
+    ClothMaterial(Vec3f color) : color(color){}
 
     Vec3f eval(const Vec3f &wo, const Vec3f&wi, float t = 0) const {
-        return this->color / M_PI;
+        Vec3f f = this->color / M_PI;
+        f *= sinf(t * (200.0f)) *  0.5f + 0.5f;
+        return f;
     }
 
     int type() const {
-        return DIFFUSE_TYPE;
+        return CLOTH_TYPE;
     }
 
     std::tuple<Vec3f, float> sample(const Vec3f& n) const {

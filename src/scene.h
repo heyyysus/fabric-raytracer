@@ -17,7 +17,7 @@ struct camera {
         look_dir = {-1.0, 0, 1.0};
         look_dir = linalg::normalize(look_dir);
         up = {0, 1, 0};
-        fov = 90;
+        fov = 80;
         aspect = 1;
     }
 
@@ -39,9 +39,11 @@ public:
     Scene();
     ~Scene();
 
+    static const int LIGHT_MATERIAL_ID = 0;
     static const int BLUE_MATERIAL_ID = 1;
     static const int RED_MATERIAL_ID = 2;
     static const int WHITE_MATERIAL_ID = 3;
+    static const int CLOTH_MATERIAL_ID = 4;
 
     // Add object to scene
     void addObject(obj_data* object, int material_id);
@@ -71,7 +73,7 @@ private:
     float area_light_l;
     int area_light_idx;
 
-    std::vector<DiffuseMaterial> materials;
+    std::vector<Material*> materials;
 
     Vec3f shade_pixel(triangle tri, Vec3f p, Vec3f wo, muni::RayTracer::Octree *octree);
 };
