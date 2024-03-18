@@ -22,7 +22,7 @@ Scene::Scene(){
     blue_material = new DiffuseMaterial(Vec3f(0.1f, 0.2f, 0.5f));
     red_material = new DiffuseMaterial(Vec3f(0.85f, 0, 0));
     white_material = new DiffuseMaterial(Vec3f(0.7f, 0.7f, 0.7f));
-    cloth_material = new ClothMaterial(Vec3f(0.85f, 0, 0));
+    cloth_material = new ClothMaterial(Vec3f(0.6f, 0, 0));
 
     this->materials.push_back(blue_material);
     this->materials.push_back(red_material);
@@ -141,11 +141,12 @@ void Scene::renderMaps(int w, int h, ImageMat* &normal, ImageMat* &depth, ImageM
                     Vec3f n = tri.n;
 
                     Vec3f p = this->cam.position + t_min * dir;
-                    float t = p.y;
+
+                    Vec3f t_v = ClothMaterial::getTangentVector(p.y * 2.0f + 0.5f);
 
                     (*normal)[i][j] = (n + 1) / 2;
                     (*depth)[i][j] = linalg::clamp(Vec3f(1.0f - t_min), Vec3f(0.0f), Vec3f(1.0f));
-                    (*albedo)[i][j] = this->materials.at(tri.material_id - 1)->eval(Vec3f(0.0f), Vec3f(0.0f), t) * M_PI;
+                    (*albedo)[i][j] = this->materials.at(tri.material_id - 1)->eval(dir, {1.0f, 0.0f, 0.0f}, t_v) * M_PI;
                 }
             }
         }
@@ -166,15 +167,13 @@ Vec3f Scene::shade_pixel(triangle tri, Vec3f p, Vec3f wo, muni::RayTracer::Octre
 
 
     float cos_theta_light_normal = linalg::dot(tri.n, w_light);
-
-    float t = p.y;
+    Vec3f t_v = ClothMaterial::getTangentVector(p.y * 2.0f + 0.5f);
 
     if (!lightBlocked && cos_theta_light_normal >= 0){
 
         Vec3f eval = this->getEmission(p, w_light) * cos_theta_light_normal / pdf_light;
 
-
-        eval *= (tri.material_id == 0) ? Vec3f(1.0f) : this->materials.at(tri.material_id - 1)->eval(wo, w_light, t);
+        eval *= (tri.material_id == 0) ? Vec3f(1.0f) : this->materials.at(tri.material_id - 1)->eval(wo, w_light, t_v);
 
         L_dir += eval;
 
@@ -194,7 +193,7 @@ Vec3f Scene::shade_pixel(triangle tri, Vec3f p, Vec3f wo, muni::RayTracer::Octre
 
         if(hit && mat->type() != LIGHT_TYPE){
 
-            Vec3f shade = mat->eval(wo, wi);
+            Vec3f shade = mat->eval(wo, wi, t_v);
 
             shade *= shade_pixel(hit_triangle, q, -wi, octree) * linalg::dot(tri.n, wi);
 
