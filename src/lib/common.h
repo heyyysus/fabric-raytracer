@@ -50,7 +50,9 @@ struct triangle {
 
     static Vec3f get_tangent_vector(triangle &tri, Vec3f &p) {
 
-        float scaledx = p.z * 4.0f * M_PI;
+        Vec3f np = normalize(p);
+        float theta = acosf(np.z);
+        float scaledx = p.z * 2.0f * M_PI;
 
         float x = sin(scaledx);
         float y = cos(scaledx);

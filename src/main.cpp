@@ -184,51 +184,146 @@ obj_data* create_fabric(float scale){
     return fabric;
 }
 
+obj_data* create_cylinder(float scale, Vec3f offset){
+    obj_data* cylinder = new obj_data();
+
+    int n = 32;
+    float r = 0.5f;
+    float h = 1.0f;
+
+    for (int i = 0; i < n; i++){
+        float theta = 2.0f * M_PI * (float)(i) / (float)(n);
+        float theta2 = 2.0f * M_PI * (float)(i + 1) / (float)(n);
+
+        Vec3f v0 = {0.0f, r * cos(theta), r * sin(theta)};
+        Vec3f v1 = {0.0f, r * cos(theta2), r * sin(theta2)};
+        Vec3f v2 = {h / 2.0f, r * cos(theta2), r * sin(theta2)};
+        Vec3f v3 = {h / 2.0f, r * cos(theta), r * sin(theta)};
+
+        v0[0] *= scale;
+        v0[1] *= scale;
+        v0[2] *= scale;
+
+        v1[0] *= scale;
+        v1[1] *= scale;
+        v1[2] *= scale;
+
+        v2[0] *= scale;
+        v2[1] *= scale;
+        v2[2] *= scale;
+
+        v3[0] *= scale;
+        v3[1] *= scale;
+        v3[2] *= scale;
+
+        v0[0] += offset[0];
+        v0[1] += offset[1];
+        v0[2] += offset[2];
+
+        v1[0] += offset[0];
+        v1[1] += offset[1];
+        v1[2] += offset[2];
+
+        v2[0] += offset[0];
+        v2[1] += offset[1];
+        v2[2] += offset[2];
+
+        v3[0] += offset[0];
+        v3[1] += offset[1];
+        v3[2] += offset[2];
+
+        Vec3f n0 = {cos(theta), 0, sin(theta)};
+        Vec3f n1 = {cos(theta2), 0, sin(theta2)};
+        Vec3f n2 = {cos(theta2), 0, sin(theta2)};
+        Vec3f n3 = {cos(theta), 0, sin(theta)};
+
+        n0 = normalize(n0);
+        n1 = normalize(n1);
+        n2 = normalize(n2);
+        n3 = normalize(n3);
+
+        cylinder->vertices.push_back(v0);
+        cylinder->vertices.push_back(v1);
+        cylinder->vertices.push_back(v2);
+        cylinder->vertices.push_back(v3);
+        
+        cylinder->normals.push_back(n0);
+        cylinder->normals.push_back(n1);
+        cylinder->normals.push_back(n2);
+        cylinder->normals.push_back(n3);
+
+        cylinder->tex_coords.push_back({(float)(i) / (float)(n), 0});
+        cylinder->tex_coords.push_back({(float)(i + 1) / (float)(n), 0});
+        cylinder->tex_coords.push_back({(float)(i + 1) / (float)(n), 1});
+        cylinder->tex_coords.push_back({(float)(i) / (float)(n), 1});
+
+        int idx = i * 4 + 1;
+        cylinder->faces.push_back({{idx + 1, idx + 1, idx + 1}, {idx + 2, idx + 3, idx + 3}, {idx + 3, idx + 2, idx + 2}});
+        cylinder->faces.push_back({{idx + 1, idx + 1, idx + 1}, {idx + 3, idx + 2, idx + 2}, {idx + 0, idx + 0, idx + 0}});
+
+    }
+
+    // cylinder->vertices.push_back(bOrigin);
+    // cylinder->vertices.push_back(tOrigin);
+
+    // cylinder->normals.push_back({0, -1, 0});
+    // cylinder->normals.push_back({0, 1, 0});
+
+    // cylinder->tex_coords.push_back({0.5, 0.5});
+    // cylinder->tex_coords.push_back({0.5, 0.5});
+
+    // int bottom_idx = n * 4;
+    // int top_idx = n * 4 + 1;
+
+    return cylinder;
+}
+
 int main(int argc, char** argv){
 
-    int w = 512;
-    int h = 512;
-    int spp = 32;
+    int w = 256;
+    int h = 256;
+    int spp = 8;
     float light_intensity = 100.0f;
 
     camera cam;
-    cam.position = {0.1, 0.0, -0.2};
-    cam.look_dir = normalize(Vec3f(0.0, 1, 0) - cam.position);
+    cam.position = {-0.5, -0.75, -0.3};
+    cam.look_dir = normalize(Vec3f(-1.0f,0.0f, 0.0f) - cam.position);
     cam.up = {1, 0, 0};
     cam.fov = 80;
     // cam.aspect = (float)(w) / (float)(h);
     cam.aspect = 1;
 
     // obj_data* object = load_obj("models/jacket.obj");
-    obj_data* object = create_fabric(0.95f);
+    // obj_data* object = create_fabric(0.95f);
+    obj_data* object = create_cylinder(0.5f, {-1.0f, 0.0f, 0.0f});
     obj_data* walls0 = create_walls(1.0f);
     obj_data* walls1 = create_walls(1.0f);
 
     walls0->faces.erase(walls0->faces.begin(), walls0->faces.end()-2);
     walls1->faces.erase(walls1->faces.end()-2, walls1->faces.end());
 
-    std::vector<std::vector<float> > rot = {
-        {0, 1, 0},
-        {-1, 0, 0},
-        {0, 0, 1},
-    };
+    // std::vector<std::vector<float> > rot = {
+    //     {0, 1, 0},
+    //     {-1, 0, 0},
+    //     {0, 0, 1},
+    // };
 
-    apply_transformation(object, rot);
+    // apply_transformation(object, rot);
 
-    // Apply 180 degree rotation around the y-axis
-    std::vector<std::vector<float> > rot2 = {
-        {-1, 0, 0},
-        {0, 1, 0},
-        {0, 0, 1},
-    };
+    // // Apply 180 degree rotation around the y-axis
+    // std::vector<std::vector<float> > rot2 = {
+    //     {-1, 0, 0},
+    //     {0, 1, 0},
+    //     {0, 0, 1},
+    // };
 
-    apply_transformation(object, rot2);
+    // apply_transformation(object, rot2);
 
     // normalize_obj_vertices(object);
 
-    for (Vec3f& v : object->vertices){
-        v[1] += 0.9f;
-    }
+    // for (Vec3f& v : object->vertices){
+    //     v[1] += 0.9f;
+    // }
 
     if (object == nullptr){
         return 1;
@@ -245,7 +340,7 @@ int main(int argc, char** argv){
     scene->addObject(walls0, Scene::BLUE_MATERIAL_ID);
     scene->addObject(walls1, Scene::WHITE_MATERIAL_ID);
 
-    Vec3f light_pos = {0.95f, 0.0f, 0.0f};
+    Vec3f light_pos = {0.95f, 0.0f, -0.5f};
     Vec3f light_dir = { -1.0f, 0.0f, 0.0f };
 
     scene->setAreaLight(light_pos, light_dir, 0.3f, Vec3f(light_intensity));
