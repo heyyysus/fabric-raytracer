@@ -142,7 +142,11 @@ void Scene::renderMaps(int w, int h, ImageMat* &normal, ImageMat* &depth, ImageM
 
                     Vec3f p = this->cam.position + t_min * dir;
 
-                    Vec3f t_v = triangle::get_tangent_vector(tri, p);
+                    Vec3f t_v = Vec3f(0.0f);
+                    if (tri.material_id == Scene::CLOTH_MATERIAL_ID){
+                        ClothMaterial* mat = (ClothMaterial*)this->materials.at(tri.material_id - 1);
+                        t_v = mat->sample_tangent(tri.n);
+                    }
 
                     (*normal)[i][j] = (n + 1) / 2;
                     (*depth)[i][j] = linalg::clamp(Vec3f(1.0f - t_min), Vec3f(0.0f), Vec3f(1.0f));
@@ -168,15 +172,42 @@ Vec3f Scene::shade_pixel(triangle tri, Vec3f p, Vec3f wo, muni::RayTracer::Octre
         muni::RayTracer::any_hit(p + EPS * tri.n, w_light, t_max, *octree, this->triangles);
 
 
-    float cos_theta_light_normal = linalg::dot(tri.n, w_light);
+    Vec3f t_v = Vec3f(0.0f);
+    Vec3f normal = tri.n;
+    Vec3f eval_d = Vec3f(0.0f);
+    Vec3f eval_i = Vec3f(0.0f);
 
-    Vec3f t_v = triangle::get_tangent_vector(tri, p);
+    Vec3f wi;
+    float pdf;
+
+    if(tri.material_id != Scene::LIGHT_MATERIAL_ID){
+        auto [wi_s, pdf_s] = this->materials.at(tri.material_id - 1)->sample(tri.n);
+        wi = wi_s;
+        pdf = pdf_s;
+    }
+
+    if (tri.material_id == Scene::CLOTH_MATERIAL_ID){
+        ClothMaterial* mat = (ClothMaterial*)this->materials.at(tri.material_id - 1);
+        if (normal != Vec3f(1.0f, 0.0f, 0.0f)){
+            normal = linalg::normalize(Vec3f({ 0.0f, p.y, p.z }));
+        }
+        t_v = mat->sample_tangent(normal);
+        eval_d = mat->eval(wo, w_light, t_v);
+        eval_i = mat->eval(wo, wi, t_v);
+    } else if (tri.material_id != Scene::LIGHT_MATERIAL_ID){
+        
+        eval_d = this->materials.at(tri.material_id - 1)->eval(wo, w_light, t_v);
+        eval_i = this->materials.at(tri.material_id - 1)->eval(wo, wi, t_v);
+
+    }
+
+    float cos_theta_light_normal = linalg::dot(normal, w_light);
 
     if (!lightBlocked && cos_theta_light_normal >= 0){
 
         Vec3f eval = this->getEmission(p, w_light) * cos_theta_light_normal / pdf_light;
 
-        eval *= (tri.material_id == 0) ? Vec3f(1.0f) : this->materials.at(tri.material_id - 1)->eval(wo, w_light, t_v);
+        eval *= (tri.material_id == 0) ? Vec3f(1.0f) : eval_d;
 
         L_dir += eval;
 
@@ -190,16 +221,14 @@ Vec3f Scene::shade_pixel(triangle tri, Vec3f p, Vec3f wo, muni::RayTracer::Octre
     if(ksi <= 0.8f && tri.material_id != 0){
 
         Material* mat = this->materials.at(tri.material_id - 1);
-        auto [wi, pdf] = mat->sample(tri.n);
         auto [hit, t_min, hit_triangle] = muni::RayTracer::closest_hit(p + EPS * tri.n, wi, *octree, this->triangles);
         Vec3f q = p + t_min * wi;
 
         if(hit && mat->type() != LIGHT_TYPE){
 
-            Vec3f shade = mat->eval(wo, wi, t_v);
+            Vec3f shade = eval_i;
 
-            shade *= shade_pixel(hit_triangle, q, -wi, octree) * linalg::dot(tri.n, wi);
-
+            shade *= shade_pixel(hit_triangle, q, -wi, octree) * linalg::dot(normal, wi);
             shade *= (1.0f/pdf) * (1.0f / 0.8f);
             L_indir += shade;
         }
@@ -207,6 +236,7 @@ Vec3f Scene::shade_pixel(triangle tri, Vec3f p, Vec3f wo, muni::RayTracer::Octre
 
     return L_dir + L_indir;
 }
+
 
 ImageMat* Scene::renderImage(int w, int h, int spp){
     ImageMat* img = new ImageMat(w, std::vector<Vec3f>(h, Vec3f(0, 0, 0)));

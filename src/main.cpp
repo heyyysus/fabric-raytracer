@@ -300,22 +300,22 @@ obj_data* create_cylinder(float scale, Vec3f offset){
 
 int main(int argc, char** argv){
 
-    int w = 512;
-    int h = 512;
+    int w = 256;
+    int h = 256;
     int spp = 8;
-    float light_intensity = 100.0f;
+    float light_intensity = 80.0f;
 
     camera cam;
     cam.position = {-0.5, -0.75, -0.3};
     cam.look_dir = normalize(Vec3f(-1.0f,0.0f, 0.0f) - cam.position);
     cam.up = {1, 0, 0};
-    cam.fov = 60;
+    cam.fov = 70;
     // cam.aspect = (float)(w) / (float)(h);
     cam.aspect = 1;
 
     // obj_data* object = load_obj("models/jacket.obj");
-    obj_data* object = create_fabric(0.5f, {-0.95f, 0.0f, 0.0f});
-    // obj_data* object = create_cylinder(0.5f, {-1.0f, 0.0f, 0.0f});
+    // obj_data* object = create_fabric(0.5f, {-0.95f, 0.0f, 0.0f});
+    obj_data* object = create_cylinder(0.5f, {-1.0f, 0.0f, 0.0f});
     obj_data* walls0 = create_walls(1.0f);
     obj_data* walls1 = create_walls(1.0f);
 
@@ -360,8 +360,8 @@ int main(int argc, char** argv){
     scene->addObject(walls0, Scene::BLUE_MATERIAL_ID);
     scene->addObject(walls1, Scene::WHITE_MATERIAL_ID);
 
-    Vec3f light_pos = {0.0f, 0.0f, -0.5f};
-    Vec3f light_dir = { -1.0f, 0.0f, 0.0f };
+    Vec3f light_pos = {0.0f, -0.5f, -0.5f};
+    Vec3f light_dir = Vec3f{ -1.0f, 0.0f, 0.0f } - light_pos;
 
     scene->setAreaLight(light_pos, light_dir, 0.3f, Vec3f(light_intensity));
 

@@ -5,6 +5,7 @@
 #include "../lib/sampler.h"
 #include "material.h"
 #include <cmath>
+#include <iostream>
 
 class ClothMaterial : public Material {
 
@@ -16,17 +17,31 @@ private:
     // float gamma_s = 0.1f;
     // float gamma_v = 0.5f;
     float kd = 0.3f;
+    std::vector<Vec3f> tangents;
 
 public:
 
-    ClothMaterial() : color(Vec3f(0.0f)){ }
-    ClothMaterial(Vec3f color) : color(color){}
+
+    ClothMaterial() : color(Vec3f(0.0f)){
+
+        const std::vector<float> tangent_lengths = {1.0f, 1.0f};
+        const std::vector<double> tangent_offsets = {-25.0, 25.0};
+        compute_tangents(Vec3f(0, 0, 1), tangent_lengths, tangent_offsets);
+
+     }
+    ClothMaterial(Vec3f color) : color(color){
+
+        const std::vector<float> tangent_lengths = {1.0f, 1.0f};
+        const std::vector<double> tangent_offsets = {-25.0, 25.0};
+        compute_tangents(Vec3f(0, 0, 1), tangent_lengths, tangent_offsets);
+
+    }
 
     Vec3f eval(const Vec3f &wo, const Vec3f&wi, Vec3f t = {0.0f, 1.0f, 0.0f}) const {
 
         Vec3f nwo = normalize(wo);
         Vec3f nwi = normalize(wi);
-        Vec3f nt = normalize(t);
+        Vec3f nt = normalize(t);;
 
         Vec3f h = normalize(nwi + nwo); 
         float cosThetaI = dot(nwi, nt);
@@ -74,6 +89,16 @@ public:
         // =============================================================================================
     }
 
+    Vec3f sample_tangent(const Vec3f &n){
+        float u = muni::UniformSampler::next1d();
+        int idx = (int)(u * (float)(tangents.size() - 1));
+        Vec3f tangent = tangents[idx];
+        tangent = muni::from_local(tangent, n);
+        // if (dot(tangent, n) > EPS || dot(tangent, n) < -EPS)
+        //     std::cout << "Tangent dot: " << dot(tangent, n) << std::endl;
+        return tangents[idx];
+    }
+
 private:
     float gaussian(float x, float stddev) const {
         return exp(-(x * x) / (2.0f * stddev * stddev)) / (stddev * sqrt(2.0f * M_PI));
@@ -96,7 +121,7 @@ private:
         return normalize(pitchedVector);
     }
 
-    std::vector<Vec3f> sampleTangents(const Vec3f& p, const Vec3f& n, const std::vector<double>& offsets, double length) {
+    void compute_tangents(const Vec3f& n, const std::vector<float>& tangent_lengths, const std::vector<double>& tangent_offsets) {
 
         std::vector<Vec3f> tangents;
 
@@ -110,19 +135,23 @@ private:
         Vec3f rotationAxis = cross(n, arbitrary);
         rotationAxis = normalize(rotationAxis);
 
-        for (double offset : offsets) {
+        for (double offset : tangent_offsets) {
+            for (float length : tangent_lengths) {
 
-            Vec3f rotatedTangent = muni::rotate(baseTangent, rotationAxis, offset);
-            rotatedTangent = normalize(rotatedTangent);
+                Vec3f rotatedTangent = muni::rotate(baseTangent, rotationAxis, offset);
+                rotatedTangent = normalize(rotatedTangent);
 
-            rotatedTangent.x *= length;
-            rotatedTangent.y *= length;
-            rotatedTangent.z *= length;
+                rotatedTangent.x *= length;
+                rotatedTangent.y *= length;
+                rotatedTangent.z *= length;
 
-            tangents.push_back(rotatedTangent);
+                tangents.push_back(rotatedTangent);
+
+            }
         }
 
-        return tangents;
+        this->tangents = tangents;
+
     }
 
 };
