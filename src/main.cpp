@@ -35,7 +35,7 @@ struct Image {
         for (int i = 0; i < width; i++){
             for (int j = 0; j < height; j++){
                 for (int k = 0; k < 3; k++){
-                    float val = muni::clamp(static_cast<float>(255.0f * this->data[i][j][k]), 0.0f, 255.0f);
+                    float val = muni::clamp(static_cast<float>(255.0f * this->data[j][i][k]), 0.0f, 255.0f);
                     raw_data.push_back((unsigned char)(val));
                 }
             }
@@ -60,7 +60,7 @@ struct Image {
         std::vector<uint8_t> _data(3 * width * height);
         for (int i = 0; i < width * height; i++) {
             for (int j = 0; j < 3; j++) {
-                Vec3f pixel = tone_map_Aces(data[i / height][i % height]);
+                Vec3f pixel = tone_map_Aces(data[i % height][i / height]);
                 _data[3 * i + j] = static_cast<uint8_t>(
                     // 255.0f * std::max(0.0f, std::min(1.0f, pixels[i][j])));
                     255.0f * std::max(0.0f, std::min(1.0f, pixel[j])));
@@ -133,10 +133,10 @@ obj_data* create_fabric(float scale){
     obj_data* fabric = new obj_data();
 
     fabric->vertices = {
-        {0, -1, -1},
-        {0, -1, 1},
-        {0, 1, 1},
-        {0, 1, -1}
+        {0, -1, -0.75},
+        {0, -1, 0.75},
+        {0, 1, 0.75},
+        {0, 1, -0.75}
     };
 
     for (auto& v : fabric->vertices){
@@ -144,7 +144,7 @@ obj_data* create_fabric(float scale){
         v[1] *= scale;
         v[2] *= scale;
 
-        v[0] -= 0.75f;
+        v[0] -= 0.95f;
     }
 
     fabric->normals = {
@@ -171,44 +171,41 @@ obj_data* create_fabric(float scale){
 
 int main(int argc, char** argv){
 
-    if (argc != 2){
-        std::cerr << "Usage: " << argv[0] << " <filename> (w/o extension, output to <filename>.png)" << std::endl;
-        return 1;
-    }
-
-    std::string fn = argv[1];
-
     int w = 256;
     int h = 256;
     int spp = 16;
-    float light_intensity = 80.0f;
+    float light_intensity = 70.0f;
 
     // obj_data* object = load_obj("models/" + fn + ".obj");
-    obj_data* object = create_fabric(0.25f);
+    obj_data* object = load_obj("models/jacket.obj");
     obj_data* walls0 = create_walls(1.0f);
     obj_data* walls1 = create_walls(1.0f);
 
     walls0->faces.erase(walls0->faces.begin(), walls0->faces.end()-2);
     walls1->faces.erase(walls1->faces.end()-2, walls1->faces.end());
 
-    // std::vector<std::vector<float> > rot = {
-    //     {0, 1, 0},
-    //     {-1, 0, 0},
-    //     {0, 0, 1},
-    // };
+    std::vector<std::vector<float> > rot = {
+        {0, 1, 0},
+        {-1, 0, 0},
+        {0, 0, 1},
+    };
 
-    // apply_transformation(object, rot);
+    apply_transformation(object, rot);
 
-    // // Apply 180 degree rotation around the y-axis
-    // std::vector<std::vector<float> > rot2 = {
-    //     {-1, 0, 0},
-    //     {0, 1, 0},
-    //     {0, 0, -1},
-    // };
+    // Apply 180 degree rotation around the y-axis
+    std::vector<std::vector<float> > rot2 = {
+        {-1, 0, 0},
+        {0, 1, 0},
+        {0, 0, 1},
+    };
 
-    // apply_transformation(object, rot2);
+    apply_transformation(object, rot2);
 
-    // normalize_obj_vertices(object);
+    normalize_obj_vertices(object);
+
+    // for (Vec3f& v : object->vertices){
+    //     v[2] -= 0.5f;
+    // }
 
     if (object == nullptr){
         return 1;
@@ -221,11 +218,14 @@ int main(int argc, char** argv){
 
     Scene* scene = new Scene();
 
-    scene->addObject(object, Scene::CLOTH_MATERIAL_ID);
+    scene->addObject(object, Scene::CLOTH_MATERIAL_ID, true);
     scene->addObject(walls0, Scene::BLUE_MATERIAL_ID);
     scene->addObject(walls1, Scene::WHITE_MATERIAL_ID);
 
-    scene->setAreaLight({0.9, 0, 0}, {-1, 0, 0}, 0.30f, Vec3f(light_intensity));
+    Vec3f light_pos = {0.95f, 0.0f, 0.0f};
+    Vec3f light_dir = { -1.0f, 0.0f, 0.0f };
+
+    scene->setAreaLight(light_pos, light_dir, 0.3f, Vec3f(light_intensity));
 
     ImageMat *nmap, *dmap, *amap;
 
@@ -236,12 +236,12 @@ int main(int argc, char** argv){
     Image normal_map(*nmap), depth_map(*dmap), albedo_map(*amap);
 
     std::cout << "Saving..." << std::endl;
-    normal_map.save(fn + "_normal.png");
-    depth_map.save(fn + "_depth.png");
-    albedo_map.save(fn + "_albedo.png");
+    normal_map.save("out/normal.png");
+    depth_map.save("out/depth.png");
+    albedo_map.save("out/albedo.png");
 
     Image img(*scene->renderImage(w, h, spp));
-    img.save_with_tonemapping(fn + ".png");
+    img.save_with_tonemapping("out/origin.png");
 
 
 

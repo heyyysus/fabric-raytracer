@@ -13,10 +13,9 @@ struct camera {
     float aspect;
 
     camera(){
-        position = {-0.4, 0, -0.4};
-        look_dir = {-1.0, 0, 1.0};
-        look_dir = linalg::normalize(look_dir);
-        up = {0, 1, 0};
+        position = {0.25, -0.25, 0.5};
+        look_dir = normalize(Vec3f(0.0, 0.0, 0) - position);
+        up = {1, 0, 0};
         fov = 80;
         aspect = 1;
     }
@@ -46,7 +45,7 @@ public:
     static const int CLOTH_MATERIAL_ID = 4;
 
     // Add object to scene
-    void addObject(obj_data* object, int material_id);
+    void addObject(obj_data* object, int material_id, bool invert_normals = false);
 
     // Add an area light
     // p: position

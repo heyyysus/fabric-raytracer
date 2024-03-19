@@ -11,6 +11,7 @@ using Vec2f = Vec2<float>;
 
 struct triangle {
     Vec3f v0, v1, v2;
+    Vec2f uv0, uv1, uv2;
     Vec3f n;
     int material_id;
 
@@ -23,6 +24,7 @@ struct triangle {
     }
 
     triangle(std::tuple<Vec3f, Vec3f, Vec3f, Vec3f, int> tri){
+
         v0 = std::get<0>(tri);
         v1 = std::get<1>(tri);
         v2 = std::get<2>(tri);
@@ -30,7 +32,24 @@ struct triangle {
         material_id = std::get<4>(tri);
     }
 
+    static Vec3f get_tangent_vector(triangle &tri, Vec3f &p) {
+
+        Vec3f E0 = tri.v1 - tri.v0;
+        Vec3f E1 = tri.v2 - tri.v0;
+
+        Vec2f dUV0 = tri.uv1 - tri.uv0;
+        Vec2f dUV1 = tri.uv2 - tri.uv0;
+
+        float f = 1.0f / (dUV0.x * dUV1.y - dUV1.x * dUV0.y);
+
+        Vec3f tangent = f * (dUV1.y * E0 - dUV0.y * E1);
+
+        return normalize(tangent);
+
+    }
+
     static std::tuple<bool, float>
     ray_triangle_intersect(triangle tri, Vec3f ray_origin, Vec3f ray_direction,
                            float t_min, float t_max);
+    
 };

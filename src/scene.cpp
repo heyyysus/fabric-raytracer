@@ -22,7 +22,7 @@ Scene::Scene(){
     blue_material = new DiffuseMaterial(Vec3f(0.1f, 0.2f, 0.5f));
     red_material = new DiffuseMaterial(Vec3f(0.85f, 0, 0));
     white_material = new DiffuseMaterial(Vec3f(0.7f, 0.7f, 0.7f));
-    cloth_material = new ClothMaterial(Vec3f(0.6f, 0, 0));
+    cloth_material = new ClothMaterial(Vec3f(0.4f, 0.1f, 0.1f));
 
     this->materials.push_back(blue_material);
     this->materials.push_back(red_material);
@@ -142,11 +142,12 @@ void Scene::renderMaps(int w, int h, ImageMat* &normal, ImageMat* &depth, ImageM
 
                     Vec3f p = this->cam.position + t_min * dir;
 
-                    Vec3f t_v = ClothMaterial::getTangentVector(p.y * 2.0f + 0.5f);
+                    Vec3f t_v = triangle::get_tangent_vector(tri, p);
 
                     (*normal)[i][j] = (n + 1) / 2;
                     (*depth)[i][j] = linalg::clamp(Vec3f(1.0f - t_min), Vec3f(0.0f), Vec3f(1.0f));
                     (*albedo)[i][j] = this->materials.at(tri.material_id - 1)->eval(dir, {1.0f, 0.0f, 0.0f}, t_v) * M_PI;
+                    // (*albedo)[i][j] = Vec3f(t_v.x * 0.5f + 0.5f);
                 }
             }
         }
@@ -167,7 +168,8 @@ Vec3f Scene::shade_pixel(triangle tri, Vec3f p, Vec3f wo, muni::RayTracer::Octre
 
 
     float cos_theta_light_normal = linalg::dot(tri.n, w_light);
-    Vec3f t_v = ClothMaterial::getTangentVector(p.y * 2.0f + 0.5f);
+
+    Vec3f t_v = triangle::get_tangent_vector(tri, p);
 
     if (!lightBlocked && cos_theta_light_normal >= 0){
 
@@ -243,7 +245,7 @@ ImageMat* Scene::renderImage(int w, int h, int spp){
                     }
                     else {
                         Vec3f pixel = this->shade_pixel(tri, p, dir, &octree);
-                        (*img)[i][j] += linalg::clamp(pixel, Vec3f(0.0f), Vec3f(120.0f));
+                        (*img)[i][j] += linalg::clamp(pixel, Vec3f(0.0f), Vec3f(80.0f));
                     }
                 } 
             }
@@ -274,14 +276,26 @@ Vec3f camera::geRayDir(float u, float v){
     return linalg::normalize(image_point - position);
 }
 
-void Scene::addObject(obj_data* object, int material_id){
+void Scene::addObject(obj_data* object, int material_id, bool invert_normals){
     for (auto& face : object->faces){
         triangle tri;
+
         tri.v0 = object->vertices[std::get<0>(face[0]) - 1];
         tri.v1 = object->vertices[std::get<0>(face[1]) - 1];
         tri.v2 = object->vertices[std::get<0>(face[2]) - 1];
+
         tri.n = linalg::normalize(linalg::cross(tri.v1 - tri.v0, tri.v2 - tri.v0));
+
+        if (invert_normals){
+            tri.n = -tri.n;
+        }
+
         tri.material_id = material_id;
+
+        tri.uv0 = object->tex_coords[std::get<1>(face[0]) - 1];
+        tri.uv1 = object->tex_coords[std::get<1>(face[1]) - 1];
+        tri.uv2 = object->tex_coords[std::get<1>(face[2]) - 1];
+
         this->triangles.push_back(tri);
     }
 }

@@ -4,6 +4,7 @@
 #include "../lib/math_helpers.h"
 #include "../lib/sampler.h"
 #include "material.h"
+#include <cmath>
 
 class ClothMaterial : public Material {
 
@@ -18,37 +19,26 @@ private:
 
 public:
 
-    static Vec3f getTangentVector(float x) {
-
-        return getPitchedVector(x, 10);
-    }
-
     ClothMaterial() : color(Vec3f(0.0f)){ }
     ClothMaterial(Vec3f color) : color(color){}
 
     Vec3f eval(const Vec3f &wo, const Vec3f&wi, Vec3f t = {0.0f, 1.0f, 0.0f}) const {
-        // Implement the light scattering function based on the empirical model
 
-        // Normalize directions
         Vec3f nwo = normalize(wo);
         Vec3f nwi = normalize(wi);
         Vec3f nt = normalize(t);
 
-        // Compute some common vectors and angles
-        Vec3f h = normalize(nwi + nwo); // Halfway vector
+        Vec3f h = normalize(nwi + nwo); 
         float cosThetaI = dot(nwi, nt);
         float cosThetaO = dot(nwo, nt);
         float cosThetaH = dot(h, nt);
 
-        // Calculate Fresnel reflectance (simplified version)
         float Fr = fresnel(cosThetaI, eta);
 
-        // Surface and volume scattering components
         float surfaceScattering = gaussian(cosThetaH, gamma_s) * Fr;
         float volumeScattering = gaussian(cosThetaH, gamma_v) * (1.0f - kd) + kd;
 
-        // Combine surface and volume scattering with the base color
-        Vec3f fs = this->color * (surfaceScattering + volumeScattering);
+        Vec3f fs = this->color * INV_PI * (surfaceScattering + volumeScattering);
 
         return fs;
     }
@@ -92,11 +82,11 @@ private:
 
     static Vec3f getPitchedVector(float x, int numOscillations) {
 
-        float scaledX = x * 2.0f * M_PI * numOscillations;
+        float scaledX = x * 2.0f * M_PI * (float)(numOscillations);
     
-        float xComponent = std::sin(scaledX);
-        float yComponent = std::sqrt(1.0f - xComponent * xComponent);
-        float zComponent = 0.0f;
+        float xComponent = std::sinf(scaledX);
+        float yComponent = 0.0f;
+        float zComponent = std::cosf(scaledX);
 
         Vec3f pitchedVector = Vec3f(xComponent, yComponent, zComponent);
 
