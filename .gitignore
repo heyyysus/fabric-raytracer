@@ -3,4 +3,7 @@
 *.mtl
 *.o
 *.png
+*.hdr
 src/main
+denoise/*
+parameters.txt

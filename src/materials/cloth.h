@@ -10,12 +10,12 @@ class ClothMaterial : public Material {
 
 private:
     Vec3f color;
-    float eta = 1.3f;
-    // float gamma_s = 12.0f * (M_PI / 180.0f);
-    // float gamma_v = 24.0f * (M_PI / 180.0f);
-    float gamma_s = 0.1f;
-    float gamma_v = 0.5f;
-    float kd = 0.1f;
+    float eta = 1.46f;
+    float gamma_s = 12.0f * (M_PI / 180.0f);
+    float gamma_v = 24.0f * (M_PI / 180.0f);
+    // float gamma_s = 0.1f;
+    // float gamma_v = 0.5f;
+    float kd = 0.3f;
 
 public:
 
@@ -33,12 +33,15 @@ public:
         float cosThetaO = dot(nwo, nt);
         float cosThetaH = dot(h, nt);
 
+        float thetaD = (cosThetaI - cosThetaO)/2;
+        float cosThetaD = cosf(thetaD);
+
         float Fr = fresnel(cosThetaI, eta);
 
         float surfaceScattering = gaussian(cosThetaH, gamma_s) * Fr;
         float volumeScattering = gaussian(cosThetaH, gamma_v) * (1.0f - kd) + kd;
 
-        Vec3f fs = this->color * INV_PI * (surfaceScattering + volumeScattering);
+        Vec3f fs = this->color * INV_PI * (1.0f / (cosThetaD * cosThetaD)) * (surfaceScattering + volumeScattering);
 
         return fs;
     }

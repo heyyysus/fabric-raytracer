@@ -13,10 +13,10 @@ struct camera {
     float aspect;
 
     camera(){
-        position = {0.25, -0.25, 0.5};
-        look_dir = normalize(Vec3f(0.0, 0.0, 0) - position);
+        position = {0.0f, 0.0f, -0.5f};
+        look_dir = normalize(Vec3f(0.0, 0.0, 0.0) - position);
         up = {1, 0, 0};
-        fov = 80;
+        fov = 90;
         aspect = 1;
     }
 
@@ -35,7 +35,7 @@ struct camera {
 
 class Scene {
 public:
-    Scene();
+    Scene(camera cam);
     ~Scene();
 
     static const int LIGHT_MATERIAL_ID = 0;
@@ -75,4 +75,6 @@ private:
     std::vector<Material*> materials;
 
     Vec3f shade_pixel(triangle tri, Vec3f p, Vec3f wo, muni::RayTracer::Octree *octree);
+
+    void add_unit_vector_to_image(ImageMat* img);
 };

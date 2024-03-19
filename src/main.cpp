@@ -32,10 +32,10 @@ struct Image {
         int height = this->data[0].size();
         std::vector<unsigned char> raw_data;
         raw_data.reserve(width * height * 3);
-        for (int i = 0; i < width; i++){
-            for (int j = 0; j < height; j++){
+        for (int j = 0; j < height; j++){
+            for (int i = 0; i < width; i++){
                 for (int k = 0; k < 3; k++){
-                    float val = muni::clamp(static_cast<float>(255.0f * this->data[j][i][k]), 0.0f, 255.0f);
+                    float val = muni::clamp(static_cast<float>(255.0f * this->data[i][j][k]), 0.0f, 255.0f);
                     raw_data.push_back((unsigned char)(val));
                 }
             }
@@ -60,7 +60,7 @@ struct Image {
         std::vector<uint8_t> _data(3 * width * height);
         for (int i = 0; i < width * height; i++) {
             for (int j = 0; j < 3; j++) {
-                Vec3f pixel = tone_map_Aces(data[i % height][i / height]);
+                Vec3f pixel = tone_map_Aces(data[i % width][i / width]);
                 _data[3 * i + j] = static_cast<uint8_t>(
                     // 255.0f * std::max(0.0f, std::min(1.0f, pixels[i][j])));
                     255.0f * std::max(0.0f, std::min(1.0f, pixel[j])));
@@ -69,6 +69,21 @@ struct Image {
         // Save the image to a png file.
         return stbi_write_png(filename.c_str(), width, height, 3, _data.data(),
                               sizeof(uint8_t) * 3 * width) != 0;
+    }
+
+    bool save_hdr(const std::string &filename) const {
+        // Convert the floating-point data to 8-bit per channel.
+        std::vector<float> _data(3 * width * height);
+        for (int i = 0; i < width * height; i++) {
+            for (int j = 0; j < 3; j++) {
+                Vec3f pixel = data[i % width][i / width];
+                _data[3 * i + j] = static_cast<float>(pixel[j]);
+                // _data[3 * i + j] = static_cast<float>(
+                //     std::max(0.0f, std::min(1.0f, pixel[j])));
+            }
+        }
+        // Save the image to a hdr file.
+        return stbi_write_hdr(filename.c_str(), width, height, 3, _data.data());
     }
 
 };
@@ -111,8 +126,8 @@ obj_data* create_walls(float scale){
         {{2, 4, 4}, {6, 4, 4}, {7, 4, 4}},
         {{2, 4, 4}, {7, 4, 4}, {3, 4, 4}},
         {{3, 5, 5}, {7, 5, 5}, {8, 5, 5}},
-        {{3, 5, 5}, {8, 5, 5}, {4, 5, 5}},
         {{5, 6, 6}, {1, 6, 6}, {4, 6, 6}},
+        {{3, 5, 5}, {8, 5, 5}, {4, 5, 5}},
         {{5, 6, 6}, {4, 6, 6}, {8, 6, 6}}
     };
 
@@ -144,7 +159,7 @@ obj_data* create_fabric(float scale){
         v[1] *= scale;
         v[2] *= scale;
 
-        v[0] -= 0.95f;
+        // v[0] -= 0.95f;
     }
 
     fabric->normals = {
@@ -171,13 +186,21 @@ obj_data* create_fabric(float scale){
 
 int main(int argc, char** argv){
 
-    int w = 256;
-    int h = 256;
-    int spp = 16;
-    float light_intensity = 70.0f;
+    int w = 512;
+    int h = 512;
+    int spp = 32;
+    float light_intensity = 100.0f;
 
-    // obj_data* object = load_obj("models/" + fn + ".obj");
-    obj_data* object = load_obj("models/jacket.obj");
+    camera cam;
+    cam.position = {0.1, 0.0, -0.2};
+    cam.look_dir = normalize(Vec3f(0.0, 1, 0) - cam.position);
+    cam.up = {1, 0, 0};
+    cam.fov = 80;
+    // cam.aspect = (float)(w) / (float)(h);
+    cam.aspect = 1;
+
+    // obj_data* object = load_obj("models/jacket.obj");
+    obj_data* object = create_fabric(0.95f);
     obj_data* walls0 = create_walls(1.0f);
     obj_data* walls1 = create_walls(1.0f);
 
@@ -201,11 +224,11 @@ int main(int argc, char** argv){
 
     apply_transformation(object, rot2);
 
-    normalize_obj_vertices(object);
+    // normalize_obj_vertices(object);
 
-    // for (Vec3f& v : object->vertices){
-    //     v[2] -= 0.5f;
-    // }
+    for (Vec3f& v : object->vertices){
+        v[1] += 0.9f;
+    }
 
     if (object == nullptr){
         return 1;
@@ -216,9 +239,9 @@ int main(int argc, char** argv){
     std::cout << "Loaded " << object->normals.size() << " normals" << std::endl;
 
 
-    Scene* scene = new Scene();
+    Scene* scene = new Scene(cam);
 
-    scene->addObject(object, Scene::CLOTH_MATERIAL_ID, true);
+    scene->addObject(object, Scene::CLOTH_MATERIAL_ID);
     scene->addObject(walls0, Scene::BLUE_MATERIAL_ID);
     scene->addObject(walls1, Scene::WHITE_MATERIAL_ID);
 
@@ -235,14 +258,19 @@ int main(int argc, char** argv){
     std::cout << "ImageMat to Image..." << std::endl;
     Image normal_map(*nmap), depth_map(*dmap), albedo_map(*amap);
 
-    std::cout << "Saving..." << std::endl;
+    std::cout << "Saving ldr..." << std::endl;
     normal_map.save("out/normal.png");
     depth_map.save("out/depth.png");
     albedo_map.save("out/albedo.png");
 
+    std::cout << "Saving hdr..." << std::endl;
+    normal_map.save("out/normal.hdr");
+    depth_map.save("out/depth.hdr");
+    albedo_map.save("out/albedo.hdr");
+
     Image img(*scene->renderImage(w, h, spp));
     img.save_with_tonemapping("out/origin.png");
-
+    img.save("out/origin.hdr");
 
 
     return 0;

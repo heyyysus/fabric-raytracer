@@ -12,9 +12,9 @@
 
 #define EPS 1e-6f
 
-Scene::Scene(){
+Scene::Scene(camera cam){
     // Initialize camera
-    this->cam = camera();
+    this->cam = cam;
 
     this->area_light_idx = -1;
 
@@ -147,7 +147,6 @@ void Scene::renderMaps(int w, int h, ImageMat* &normal, ImageMat* &depth, ImageM
                     (*normal)[i][j] = (n + 1) / 2;
                     (*depth)[i][j] = linalg::clamp(Vec3f(1.0f - t_min), Vec3f(0.0f), Vec3f(1.0f));
                     (*albedo)[i][j] = this->materials.at(tri.material_id - 1)->eval(dir, {1.0f, 0.0f, 0.0f}, t_v) * M_PI;
-                    // (*albedo)[i][j] = Vec3f(t_v.x * 0.5f + 0.5f);
                 }
             }
         }
@@ -219,7 +218,7 @@ ImageMat* Scene::renderImage(int w, int h, int spp){
 
     for (int i = 0; i < w; i++){
         if (i % 10 == 0){
-            std::cout << "Rendering row: " << i << "/" << w << std::endl;
+            std::cout << "Rendering col: " << i << "/" << w << std::endl;
         }
         for (int j = 0; j < h; j++){
             float u = (2 * (i + muni::UniformSampler::next1d()) * inv_w - 1) * aspect_ratio * scale;
@@ -245,7 +244,7 @@ ImageMat* Scene::renderImage(int w, int h, int spp){
                     }
                     else {
                         Vec3f pixel = this->shade_pixel(tri, p, dir, &octree);
-                        (*img)[i][j] += linalg::clamp(pixel, Vec3f(0.0f), Vec3f(80.0f));
+                        (*img)[i][j] += linalg::clamp(pixel, Vec3f(0.0f), Vec3f(100.0f));
                     }
                 } 
             }

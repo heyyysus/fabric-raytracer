@@ -32,19 +32,31 @@ struct triangle {
         material_id = std::get<4>(tri);
     }
 
+    // static Vec3f get_tangent_vector(triangle &tri, Vec3f &p) {
+
+    //     Vec3f E0 = tri.v1 - tri.v0;
+    //     Vec3f E1 = tri.v2 - tri.v0;
+
+    //     Vec2f dUV0 = tri.uv1 - tri.uv0;
+    //     Vec2f dUV1 = tri.uv2 - tri.uv0;
+
+    //     float f = 1.0f / (dUV0.x * dUV1.y - dUV1.x * dUV0.y);
+
+    //     Vec3f tangent = f * (dUV1.y * E0 - dUV0.y * E1);
+
+    //     return normalize(tangent);
+
+    // }
+
     static Vec3f get_tangent_vector(triangle &tri, Vec3f &p) {
 
-        Vec3f E0 = tri.v1 - tri.v0;
-        Vec3f E1 = tri.v2 - tri.v0;
+        float scaledx = p.z * 4.0f * M_PI;
 
-        Vec2f dUV0 = tri.uv1 - tri.uv0;
-        Vec2f dUV1 = tri.uv2 - tri.uv0;
+        float x = sin(scaledx);
+        float y = cos(scaledx);
+        float z = 0.0f;
 
-        float f = 1.0f / (dUV0.x * dUV1.y - dUV1.x * dUV0.y);
-
-        Vec3f tangent = f * (dUV1.y * E0 - dUV0.y * E1);
-
-        return normalize(tangent);
+        return normalize(Vec3f(x, y, z));
 
     }
 
