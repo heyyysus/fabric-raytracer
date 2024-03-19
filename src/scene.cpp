@@ -147,6 +147,8 @@ void Scene::renderMaps(int w, int h, ImageMat* &normal, ImageMat* &depth, ImageM
                     (*normal)[i][j] = (n + 1) / 2;
                     (*depth)[i][j] = linalg::clamp(Vec3f(1.0f - t_min), Vec3f(0.0f), Vec3f(1.0f));
                     (*albedo)[i][j] = this->materials.at(tri.material_id - 1)->eval(dir, {1.0f, 0.0f, 0.0f}, t_v) * M_PI;
+                    // if (tri.material_id == Scene::CLOTH_MATERIAL_ID)
+                    //     (*albedo)[i][j] = linalg::clamp(t_v, Vec3f(0.0f), Vec3f(1.0f));
                 }
             }
         }

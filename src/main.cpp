@@ -144,7 +144,7 @@ obj_data* create_walls(float scale){
     return walls;
 }
 
-obj_data* create_fabric(float scale){
+obj_data* create_fabric(float scale, Vec3f offset){
     obj_data* fabric = new obj_data();
 
     fabric->vertices = {
@@ -180,6 +180,12 @@ obj_data* create_fabric(float scale){
         {{1, 1, 1}, {3, 1, 1}, {2, 1, 1}},
         {{1, 1, 1}, {4, 1, 1}, {3, 1, 1}}
     };
+
+    for (auto& v : fabric->vertices){
+        v[0] += offset[0];
+        v[1] += offset[1];
+        v[2] += offset[2];
+    }
 
     return fabric;
 }
@@ -263,25 +269,39 @@ obj_data* create_cylinder(float scale, Vec3f offset){
 
     }
 
-    // cylinder->vertices.push_back(bOrigin);
-    // cylinder->vertices.push_back(tOrigin);
+    Vec3f topCenter = Vec3f(h / 2.0f, 0.0f, 0.0f) * scale + offset;
+    cylinder->vertices.push_back(topCenter);
+    int topCenterIdx = cylinder->vertices.size(); // Index of the top center vertex
+    cylinder->normals.push_back(Vec3f(1, 0, 0)); // Assuming top faces +x direction
+    cylinder->tex_coords.push_back(Vec2f(0.5, 0.5)); // Center of UV for the cap
 
-    // cylinder->normals.push_back({0, -1, 0});
-    // cylinder->normals.push_back({0, 1, 0});
+    for (int i = 0; i < n; i++) {
+        float theta = 2.0f * M_PI * i / n;
+        Vec3f vert = Vec3f(h / 2.0f, r * cos(theta), r * sin(theta)) * scale + offset;
+        
+        cylinder->vertices.push_back(vert);
+        cylinder->normals.push_back(Vec3f(1, 0, 0)); // Top faces +x direction
+        float u = (cos(theta) + 1.0f) * 0.5f; // Map to [0, 1] for UV
+        float v = (sin(theta) + 1.0f) * 0.5f; // Map to [0, 1] for UV
+        cylinder->tex_coords.push_back(Vec2f(u, v));
+    }
 
-    // cylinder->tex_coords.push_back({0.5, 0.5});
-    // cylinder->tex_coords.push_back({0.5, 0.5});
+    for (int i = 0; i < n; i++) {
+        int nextIdx = (i + 1) % n;
+        int v1 = topCenterIdx + i + 1; // +1 because topCenterIdx is the first
+        int v2 = topCenterIdx + nextIdx + 1;
 
-    // int bottom_idx = n * 4;
-    // int top_idx = n * 4 + 1;
+        cylinder->faces.push_back({{topCenterIdx, topCenterIdx, topCenterIdx}, {v1, v1, v1}, {v2, v2, v2}});
+    }
+
 
     return cylinder;
 }
 
 int main(int argc, char** argv){
 
-    int w = 256;
-    int h = 256;
+    int w = 512;
+    int h = 512;
     int spp = 8;
     float light_intensity = 100.0f;
 
@@ -289,13 +309,13 @@ int main(int argc, char** argv){
     cam.position = {-0.5, -0.75, -0.3};
     cam.look_dir = normalize(Vec3f(-1.0f,0.0f, 0.0f) - cam.position);
     cam.up = {1, 0, 0};
-    cam.fov = 80;
+    cam.fov = 60;
     // cam.aspect = (float)(w) / (float)(h);
     cam.aspect = 1;
 
     // obj_data* object = load_obj("models/jacket.obj");
-    // obj_data* object = create_fabric(0.95f);
-    obj_data* object = create_cylinder(0.5f, {-1.0f, 0.0f, 0.0f});
+    obj_data* object = create_fabric(0.5f, {-0.95f, 0.0f, 0.0f});
+    // obj_data* object = create_cylinder(0.5f, {-1.0f, 0.0f, 0.0f});
     obj_data* walls0 = create_walls(1.0f);
     obj_data* walls1 = create_walls(1.0f);
 
@@ -340,7 +360,7 @@ int main(int argc, char** argv){
     scene->addObject(walls0, Scene::BLUE_MATERIAL_ID);
     scene->addObject(walls1, Scene::WHITE_MATERIAL_ID);
 
-    Vec3f light_pos = {0.95f, 0.0f, -0.5f};
+    Vec3f light_pos = {0.0f, 0.0f, -0.5f};
     Vec3f light_dir = { -1.0f, 0.0f, 0.0f };
 
     scene->setAreaLight(light_pos, light_dir, 0.3f, Vec3f(light_intensity));

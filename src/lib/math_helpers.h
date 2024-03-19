@@ -68,4 +68,16 @@ template<class T> T clamp(T x, T a, T b) {
     return x < a ? a : (x > b ? b : x);
 }
 
+inline Vec3f rotate(const Vec3f v, const Vec3f& axis, double angleDegrees) {
+        double angleRad = angleDegrees * M_PI / 180.0;
+        double cosTheta = std::cos(angleRad);
+        double sinTheta = std::sin(angleRad);
+
+        return {
+            cosTheta * v.x + sinTheta * (axis.y * v.z - axis.z * v.y) + (1 - cosTheta) * axis.x * dot(v, axis),
+            cosTheta * v.y + sinTheta * (axis.z * v.x - axis.x * v.z) + (1 - cosTheta) * axis.y * dot(v, axis),
+            cosTheta * v.z + sinTheta * (axis.x * v.y - axis.y * v.x) + (1 - cosTheta) * axis.z * dot(v, axis)
+        };
+    }
+
 }  // namespace muni

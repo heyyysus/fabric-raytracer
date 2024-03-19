@@ -9,6 +9,8 @@ template<class T> using Vec2 = Vec<2, T>;
 using Vec3f = Vec3<float>;
 using Vec2f = Vec2<float>;
 
+#include "math_helpers.h"
+
 struct triangle {
     Vec3f v0, v1, v2;
     Vec2f uv0, uv1, uv2;
@@ -48,18 +50,45 @@ struct triangle {
 
     // }
 
+    // static Vec3f get_tangent_vector(triangle &tri, Vec3f &p) {
+
+    //     Vec3f z = Vec3f(0, 0, 1);
+    //     Vec3f n = tri.n;
+    //     Vec3f np(p);
+    //     np.x = 0;
+    //     np = normalize(np);
+
+    //     Vec3f t = cross(n, z);
+    //     if (linalg::length2(t) < 0.0001f) {
+    //         t = cross(n, Vec3f(0, 1, 0));
+    //     }
+
+    //     float theta = atan(np.y / np.z);
+    //     if (n.z > 0) {
+    //         theta += M_PI;
+    //     }
+
+    //     if (std::isinf(theta)) {
+    //         theta = 0;
+    //     }
+
+    //     t = normalize(t);
+
+    //     t += 0.5f * cosf(5.0f * M_PI * theta) * n;
+
+    //     return normalize(t);
+    //     // return Vec3f(cosf(5.0f * M_PI * theta) / 2 + 0.5f);
+
+    // }
+
     static Vec3f get_tangent_vector(triangle &tri, Vec3f &p) {
 
-        Vec3f np = normalize(p);
-        float theta = acosf(np.z);
-        float scaledx = p.z * 2.0f * M_PI;
+        float num_osc = 2.0f;
+        float scaledTheta = num_osc * p.z * 2.0f * M_PI;
 
-        float x = sin(scaledx);
-        float y = cos(scaledx);
-        float z = 0.0f;
+        Vec3f t = Vec3f(cosf(scaledTheta), sinf(scaledTheta), 0.0f);
 
-        return normalize(Vec3f(x, y, z));
-
+        return normalize(t);
     }
 
     static std::tuple<bool, float>

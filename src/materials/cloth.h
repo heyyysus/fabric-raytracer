@@ -96,4 +96,33 @@ private:
         return normalize(pitchedVector);
     }
 
+    std::vector<Vec3f> sampleTangents(const Vec3f& p, const Vec3f& n, const std::vector<double>& offsets, double length) {
+
+        std::vector<Vec3f> tangents;
+
+        Vec3f baseTangent(1, 0, 0);
+        
+        Vec3f arbitrary(0.0, 1.0, 0.0);
+        if (std::fabs(dot(n, arbitrary)) > 0.999) { 
+            arbitrary = Vec3f(1.0, 0.0, 0.0);
+        }
+
+        Vec3f rotationAxis = cross(n, arbitrary);
+        rotationAxis = normalize(rotationAxis);
+
+        for (double offset : offsets) {
+
+            Vec3f rotatedTangent = muni::rotate(baseTangent, rotationAxis, offset);
+            rotatedTangent = normalize(rotatedTangent);
+
+            rotatedTangent.x *= length;
+            rotatedTangent.y *= length;
+            rotatedTangent.z *= length;
+
+            tangents.push_back(rotatedTangent);
+        }
+
+        return tangents;
+    }
+
 };
