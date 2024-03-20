@@ -95,14 +95,22 @@ private:
         Vec3f nt = normalize(t);;
 
         Vec3f h = normalize(nwi + nwo); 
-        float cosThetaI = abs(dot(nwi, nt));
-        float cosThetaO = abs(dot(nwo, nt));
+        float cosThetaI = dot(nwi, nt);
+        float cosThetaO = dot(nwo, nt);
         float cosThetaH = (cosThetaI + cosThetaO) / 2.0f;
         float cosThetaD = (cosThetaI - cosThetaO) / 2.0f;
 
         float phi_r = get_phi(nt, nwo, n);
         float phi_i = get_phi(nt, nwi, n);
         float phi_d = phi_i - phi_r;
+
+        // if (phi_r < 0.0f) {
+        //     phi_r += 2.0f * M_PI;
+        // }
+
+        // if (phi_i < 0.0f) {
+        //     phi_i += 2.0f * M_PI;
+        // }
 
         // float Fr_wi = Fresnel_r(eta, nwi, n);
         float Fr_wi = fresnel(cosThetaI, eta);
@@ -112,12 +120,16 @@ private:
 
         float surfaceScattering = gaussian(cosThetaH, gamma_s) * Fr_wi * cosf(phi_d / 2.0f);
         Vec3f volumeScattering = color;
-        volumeScattering = (volumeScattering * gaussian(cosThetaH, gamma_v) * (1.0f - kd)) + kd;
+
+        volumeScattering *= (volumeScattering * gaussian(cosThetaH, gamma_v) * (1.0f - kd)) + kd;
         volumeScattering *= 1.0f / (cosThetaI + cosThetaO);
         volumeScattering *= Ft;
         // float volumeScattering = gaussian(cosThetaH, gamma_v) * (1.0f - kd) + kd;
 
-        Vec3f fs = color * INV_PI * (surfaceScattering + volumeScattering);
+        float m = M(phi_d, phi_i, phi_r);
+        // float m = 1.0f;
+
+        Vec3f fs = color * m * INV_PI * (surfaceScattering + volumeScattering);
 
         for (float &f : fs) {
             if (f < 0.0f) {
@@ -135,8 +147,14 @@ private:
         return exp(-(x * x) / (2.0f * stddev * stddev)) / (stddev * sqrt(2.0f * M_PI));
     }
 
+    float u_gaussian(float x, float stddev) const {
+        return exp(-(x * x) / (2.0f * stddev * stddev));
+    }
+
     float fresnel(float cosTheta, float eta) const {
-        return pow((eta - 1.0f) / (eta + 1.0f), 2.0f);
+        // return pow((eta - 1.0f) / (eta + 1.0f), 2.0f);
+        float R0 = eta;
+        return R0 + (1.0f - R0) * pow(1.0f - cosTheta, 5.0f);
     }
 
     float Fresnel_r(float eta, const Vec3f& w, const Vec3f& n) const {
@@ -151,8 +169,15 @@ private:
         return reflectance;
 }
 
-    float M(const Vec3f &t, const Vec3f &w_r, const Vec3f &phi_r) const{
+    float M(const float &phi_d, const float &phi_i, const float &phi_r) const{
+        float std = 25.0f * (M_PI / 180.0f);
+        float u_term = u_gaussian(phi_d, std);
+        float M_wi = std::max(cosf(phi_i), 0.0f);
+        float M_wr = std::max(cosf(phi_r), 0.0f);
 
+        float M = (1.0f - u_term) * M_wi * M_wr + u_term * std::min(M_wi, M_wr);
+
+        return M;
     }
 
     float get_phi(const Vec3f &t, const Vec3f &w_r, const Vec3f &n) const {
@@ -162,12 +187,18 @@ private:
         Vec3f w_r_proj = nw_r - dot(nw_r, n) * n;
         w_r_proj = normalize(w_r_proj);
 
-        Vec3f b = cross(n, nt);
-        b = normalize(b);
+        float cos_phi = dot(nt, w_r_proj);
+        Vec3f s = cross(nt, w_r_proj);
+        s = normalize(s);
 
         float cos_phi_r = dot(w_r_proj, t);
-        float sin_phi_r = dot(w_r_proj, b); 
+        float sin_phi_r = dot(w_r_proj, s); 
         float phi_r = atan2(sin_phi_r, cos_phi_r);
+
+        if (cos_phi < 0.0f) {
+            phi_r = 1.0f * M_PI - phi_r;
+        }
+
 
         return phi_r;
     }
