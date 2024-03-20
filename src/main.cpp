@@ -302,14 +302,14 @@ int main(int argc, char** argv){
 
     int w = 256;
     int h = 256;
-    int spp = 8;
+    int spp = 4;
     float light_intensity = 80.0f;
 
     camera cam;
     cam.position = {-0.5, -0.75, -0.3};
-    cam.look_dir = normalize(Vec3f(-1.0f,0.0f, 0.0f) - cam.position);
+    cam.look_dir = normalize(Vec3f(-0.9f,0.0f, 0.0f) - cam.position);
     cam.up = {1, 0, 0};
-    cam.fov = 70;
+    cam.fov = 60;
     // cam.aspect = (float)(w) / (float)(h);
     cam.aspect = 1;
 
@@ -360,7 +360,7 @@ int main(int argc, char** argv){
     scene->addObject(walls0, Scene::BLUE_MATERIAL_ID);
     scene->addObject(walls1, Scene::WHITE_MATERIAL_ID);
 
-    Vec3f light_pos = {0.0f, -0.5f, -0.5f};
+    Vec3f light_pos = {-0.4, -0.75, -0.4};
     Vec3f light_dir = Vec3f{ -1.0f, 0.0f, 0.0f } - light_pos;
 
     scene->setAreaLight(light_pos, light_dir, 0.3f, Vec3f(light_intensity));

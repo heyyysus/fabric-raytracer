@@ -1,5 +1,6 @@
 #pragma once
 #include "linalg.h"
+#include <iostream>
 
 template<int N, class T> using Vec = linalg::vec<T, N>;
 template<class T> using Vec3 = Vec<3, T>;
@@ -10,6 +11,10 @@ using Vec3f = Vec3<float>;
 using Vec2f = Vec2<float>;
 
 #include "math_helpers.h"
+
+inline void print_vec(Vec3f &v){
+    std::cout << v.x << " " << v.y << " " << v.z << std::endl;
+}
 
 struct triangle {
     Vec3f v0, v1, v2;

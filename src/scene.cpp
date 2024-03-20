@@ -22,7 +22,7 @@ Scene::Scene(camera cam){
     blue_material = new DiffuseMaterial(Vec3f(0.1f, 0.2f, 0.5f));
     red_material = new DiffuseMaterial(Vec3f(0.85f, 0, 0));
     white_material = new DiffuseMaterial(Vec3f(0.7f, 0.7f, 0.7f));
-    cloth_material = new ClothMaterial(Vec3f(0.4f, 0.1f, 0.1f));
+    cloth_material = new ClothMaterial(Vec3f(0.8f, 0.1f, 0.1f), Vec3f(0.1f, 0.1f, 0.8f));
 
     this->materials.push_back(blue_material);
     this->materials.push_back(red_material);
@@ -150,7 +150,7 @@ void Scene::renderMaps(int w, int h, ImageMat* &normal, ImageMat* &depth, ImageM
 
                     (*normal)[i][j] = (n + 1) / 2;
                     (*depth)[i][j] = linalg::clamp(Vec3f(1.0f - t_min), Vec3f(0.0f), Vec3f(1.0f));
-                    (*albedo)[i][j] = this->materials.at(tri.material_id - 1)->eval(dir, {1.0f, 0.0f, 0.0f}, t_v) * M_PI;
+                    (*albedo)[i][j] = this->materials.at(tri.material_id - 1)->eval(dir, {1.0f, 0.0f, 0.0f}, tri.n, t_v) * M_PI;
                     // if (tri.material_id == Scene::CLOTH_MATERIAL_ID)
                     //     (*albedo)[i][j] = linalg::clamp(t_v, Vec3f(0.0f), Vec3f(1.0f));
                 }
@@ -187,17 +187,23 @@ Vec3f Scene::shade_pixel(triangle tri, Vec3f p, Vec3f wo, muni::RayTracer::Octre
     }
 
     if (tri.material_id == Scene::CLOTH_MATERIAL_ID){
+        bool switch_t = false;
         ClothMaterial* mat = (ClothMaterial*)this->materials.at(tri.material_id - 1);
         if (normal != Vec3f(1.0f, 0.0f, 0.0f)){
             normal = linalg::normalize(Vec3f({ 0.0f, p.y, p.z }));
         }
         t_v = mat->sample_tangent(normal);
-        eval_d = mat->eval(wo, w_light, t_v);
-        eval_i = mat->eval(wo, wi, t_v);
+        Vec3f t_v_2 = normalize(cross(t_v, normal));
+
+        // if (abs(length(t_v_2) - 0.5f) > EPS) 
+        //     std::cout << "Tangent vector is not orthogonal to normal" << std::endl;
+
+        eval_d = mat->eval(wo, w_light, normal, t_v, t_v_2);
+        eval_i = mat->eval(wo, wi, normal, t_v, t_v_2);
     } else if (tri.material_id != Scene::LIGHT_MATERIAL_ID){
         
-        eval_d = this->materials.at(tri.material_id - 1)->eval(wo, w_light, t_v);
-        eval_i = this->materials.at(tri.material_id - 1)->eval(wo, wi, t_v);
+        eval_d = this->materials.at(tri.material_id - 1)->eval(wo, w_light, normal, t_v);
+        eval_i = this->materials.at(tri.material_id - 1)->eval(wo, wi, normal, t_v);
 
     }
 
